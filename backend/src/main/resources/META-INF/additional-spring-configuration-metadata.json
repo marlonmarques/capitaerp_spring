@@ -1,0 +1,32 @@
+{"properties": [
+  {
+    "name": "spring.datasource.h2.url",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.h2.url'"
+  },
+  {
+    "name": "spring.datasource.h2.driver-class-name",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.h2.driver-class-name'"
+  },
+  {
+    "name": "spring.datasource.h2.username",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.h2.username'"
+  },
+  {
+    "name": "spring.datasource.h2.password",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.h2.password'"
+  },
+  {
+    "name": "spring.datasource.sqlite.url",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.sqlite.url'"
+  },
+  {
+    "name": "spring.datasource.sqlite.driver-class-name",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.sqlite.driver-class-name'"
+  }
+]}
