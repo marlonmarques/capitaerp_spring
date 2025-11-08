@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.erp.capitalerp.services.excepitos.ResourceEntityNotFoundException;
+import com.erp.capitalerp.services.excepitos.ResourceNotFoundExcepiton;
 import com.erp.capitalerp.dto.RoleDTO;
 import com.erp.capitalerp.dto.UserDTO;
 import com.erp.capitalerp.dto.UserInsertDTO;
@@ -47,7 +47,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserDTO findById(Long id) {
         Optional<User> obj = repository.findById(id);
-        User entity = obj.orElseThrow(() -> new ResourceEntityNotFoundException("Entity not found"));
+        User entity = obj.orElseThrow(() -> new ResourceNotFoundExcepiton("Entity not found"));
         return new UserDTO(entity);
   
     }
@@ -69,14 +69,14 @@ public class UserService {
             entity = repository.save(entity);
             return new UserDTO(entity);
         } catch (EntityNotFoundException e) {
-            throw new ResourceEntityNotFoundException("Id not found " + id);
+            throw new ResourceNotFoundExcepiton("Id not found " + id);
         }
     }
 
     @Transactional(propagation = Propagation.SUPPORTS)
     public void delete(Long id) {
         if (!repository.existsById(id)) {
-		throw new ResourceEntityNotFoundException("Recurso não encontrado");
+		throw new ResourceNotFoundExcepiton("Recurso não encontrado");
         }
         try {
             repository.deleteById(id);
