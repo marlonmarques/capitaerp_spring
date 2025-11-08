@@ -1,0 +1,82 @@
+<nz-layout class="layout">
+  <nz-sider 
+    nzCollapsible 
+    [(nzCollapsed)]="isCollapsed"
+    [nzWidth]="256"
+    [nzTrigger]="null"
+    class="sider">
+    
+    <div class="logo">
+      <h2>{{ isCollapsed ? 'CE' : 'Capital ERP' }}</h2>
+    </div>
+
+    <ul nz-menu nzTheme="dark" nzMode="inline">
+      <li 
+        nz-menu-item 
+        *ngFor="let item of menuItems"
+        [nzSelected]="router.isActive(item.link || '', false)"
+        (click)="item.link && router.navigate([item.link])">
+        
+        <i nz-icon [nzType]="item.icon"></i>
+        <span>{{ item.label }}</span>
+      </li>
+    </ul>
+  </nz-sider>
+
+  <nz-layout>
+    <nz-header class="header">
+      <div class="header-left">
+        <button 
+          nz-button 
+          nzType="text" 
+          (click)="isCollapsed = !isCollapsed"
+          class="trigger">
+          <i nz-icon [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"></i>
+        </button>
+
+        <nz-breadcrumb>
+          <nz-breadcrumb-item *ngFor="let item of breadcrumbItems">
+            <a [routerLink]="item.link" *ngIf="item.link; else noLink">
+              {{ item.label }}
+            </a>
+            <ng-template #noLink>
+              {{ item.label }}
+            </ng-template>
+          </nz-breadcrumb-item>
+        </nz-breadcrumb>
+      </div>
+
+      <div class="header-right">
+        <!-- DROPDOWN CORRIGIDO conforme documentação -->
+        <a nz-dropdown [nzDropdownMenu]="userMenu">
+            <i nz-icon nzType="user"></i>
+            <span>{{ currentUser?.firstName || 'Usuário' }}</span>
+            <i nz-icon nzType="down"></i>
+        </a>
+        <nz-dropdown-menu #userMenu="nzDropdownMenu">
+          <ul nz-menu>
+            <li nz-menu-item>
+              <i nz-icon nzType="user"></i>
+              Meu Perfil
+            </li>
+            <li nz-menu-item>
+              <i nz-icon nzType="setting"></i>
+              Configurações
+            </li>
+            <li nz-menu-divider></li>
+            <li nz-menu-item (click)="logout()">
+              <i nz-icon nzType="logout"></i>
+              Sair
+            </li>
+          </ul>
+        </nz-dropdown-menu>
+      </div>
+    </nz-header>
+
+    <nz-content class="content">
+      <div class="inner-content">
+        <router-outlet></router-outlet>
+      </div>
+    </nz-content>
+  </nz-layout>
+</nz-layout>

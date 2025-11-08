@@ -1,0 +1,44 @@
+<div class="login-container">
+  <nz-card class="login-card" nzTitle="Capital ERP - Login">
+    <form nz-form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <nz-form-item>
+        <nz-form-label nzRequired>Email</nz-form-label>
+        <nz-form-control [nzErrorTip]="emailErrorTpl">
+          <input nz-input formControlName="email" placeholder="seu@email.com" />
+          <ng-template #emailErrorTpl let-control>
+            <ng-container *ngIf="control?.errors?.['required']">
+              Por favor, informe seu email
+            </ng-container>
+            <ng-container *ngIf="control?.errors?.['email']">
+              Por favor, informe um email válido
+            </ng-container>
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
+
+      <nz-form-item>
+        <nz-form-label nzRequired>Senha</nz-form-label>
+        <nz-form-control [nzErrorTip]="passwordErrorTpl">
+          <input nz-input type="password" formControlName="password" placeholder="Sua senha" />
+          <ng-template #passwordErrorTpl let-control>
+            <ng-container *ngIf="control?.errors?.['required']">
+              Por favor, informe sua senha
+            </ng-container>
+            <ng-container *ngIf="control?.errors?.['minlength']">
+              A senha deve ter pelo menos 6 caracteres
+            </ng-container>
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
+
+      <button 
+        nz-button 
+        nzType="primary" 
+        nzBlock 
+        [nzLoading]="loading"
+        [disabled]="!loginForm.valid">
+        Entrar
+      </button>
+    </form>
+  </nz-card>
+</div>
