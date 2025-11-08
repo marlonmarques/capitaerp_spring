@@ -21,26 +21,32 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.erp.capitalerp.config.SecurityConfig;
-import com.erp.capitalerp.dto.ClienteDTO;
-import com.erp.capitalerp.services.ClienteService;
+import com.erp.capitalerp.dto.UserDTO;
+import com.erp.capitalerp.dto.UserInsertDTO;
+import com.erp.capitalerp.dto.UserUpdateDTO;
+import com.erp.capitalerp.repositories.UserRepository;
+import com.erp.capitalerp.services.Factory;
+import com.erp.capitalerp.services.UserService;
 import com.erp.capitalerp.services.excepitos.DatabaseException;
 import com.erp.capitalerp.services.excepitos.ResourceNotFoundExcepiton;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-@WebMvcTest(ClienteController.class)
+@WebMvcTest(UserResource.class)
 @Import(SecurityConfig.class)
-public class ClienteControllerTests {
+public class UserResourceTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ClienteService service;
+    private UserService service;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -48,8 +54,8 @@ public class ClienteControllerTests {
     private Long existingId;
     private Long nonExistingId;
     private Long dependentId;
-    private ClienteDTO clienteDTO;
-    private PageImpl<ClienteDTO> page;
+    private UserDTO userDTO;
+    private PageImpl<UserDTO> page;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -57,17 +63,17 @@ public class ClienteControllerTests {
         nonExistingId = 2L;
         dependentId = 3L;
 
-        clienteDTO = new ClienteDTO(existingId, "John", "Doe", null, 1L, "12345678901", null, null, null, null, null, null, null, null);
-        page = new PageImpl<>(List.of(clienteDTO));
+        userDTO = new UserDTO(Factory.createUser());
+        page = new PageImpl<>(List.of(userDTO));
 
         when(service.findAllPaged(any())).thenReturn(page);
 
-        when(service.findById(existingId)).thenReturn(clienteDTO);
+        when(service.findById(existingId)).thenReturn(userDTO);
         when(service.findById(nonExistingId)).thenThrow(ResourceNotFoundExcepiton.class);
 
-        when(service.insert(any())).thenReturn(clienteDTO);
+        when(service.insert(any())).thenReturn(userDTO);
 
-        when(service.update(eq(existingId), any())).thenReturn(clienteDTO);
+        when(service.update(eq(existingId), any())).thenReturn(userDTO);
         when(service.update(eq(nonExistingId), any())).thenThrow(ResourceNotFoundExcepiton.class);
 
         doNothing().when(service).delete(existingId);
@@ -76,61 +82,67 @@ public class ClienteControllerTests {
     }
 
     @Test
-    @WithMockUser
     public void findAllShouldReturnPage() throws Exception {
-        mockMvc.perform(get("/clientes")
-                .accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/users"))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @WithMockUser
-    public void findByIdShouldReturnClienteDTOWhenIdExists() throws Exception {
-        mockMvc.perform(get("/clientes/{id}", existingId)
-                .accept(MediaType.APPLICATION_JSON))
+    public void findByIdShouldReturnUserDTOWhenIdExists() throws Exception {
+        mockMvc.perform(get("/users/{id}", existingId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.name").exists());
+                .andExpect(jsonPath("$.firstName").exists());
     }
 
     @Test
-    @WithMockUser
     public void findByIdShouldReturnNotFoundWhenIdDoesNotExist() throws Exception {
-        mockMvc.perform(get("/clientes/{id}", nonExistingId)
-                .accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/users/{id}", nonExistingId))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    public void insertShouldReturnClienteDTOCreated() throws Exception {
-        String jsonBody = objectMapper.writeValueAsString(clienteDTO);
-        mockMvc.perform(post("/clientes")
+    public void insertShouldReturnUserDTOCreated() throws Exception {
+        UserInsertDTO userInsertDTO = new UserInsertDTO();
+        userInsertDTO.setFirstName("John");
+        userInsertDTO.setLastName("Doe");
+        userInsertDTO.setEmail("john.doe@example.com");
+        userInsertDTO.setPassword("123456");
+
+        String jsonBody = objectMapper.writeValueAsString(userInsertDTO);
+
+        mockMvc.perform(post("/users")
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.name").exists());
+                .andExpect(jsonPath("$.id").exists());
     }
 
     @Test
-    public void updateShouldReturnClienteDTOWhenIdExists() throws Exception {
-        String jsonBody = objectMapper.writeValueAsString(clienteDTO);
+    public void updateShouldReturnUserDTOWhenIdExists() throws Exception {
+        UserUpdateDTO userUpdateDTO = new UserUpdateDTO();
+        userUpdateDTO.setFirstName("Updated Name");
+        String jsonBody = objectMapper.writeValueAsString(userUpdateDTO);
 
-        mockMvc.perform(put("/clientes/{id}", existingId)
+        mockMvc.perform(put("/users/{id}", existingId)
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.name").exists());
+                .andExpect(jsonPath("$.id").value(existingId));
     }
 
     @Test
     public void updateShouldReturnNotFoundWhenIdDoesNotExist() throws Exception {
-        String jsonBody = objectMapper.writeValueAsString(clienteDTO);
+        UserUpdateDTO userUpdateDTO = new UserUpdateDTO();
+        userUpdateDTO.setFirstName("John");
+        userUpdateDTO.setLastName("Doe");
+        userUpdateDTO.setEmail("john.doe@example.com");
+        
+        String jsonBody = objectMapper.writeValueAsString(userUpdateDTO);
 
-        mockMvc.perform(put("/clientes/{id}", nonExistingId)
+        mockMvc.perform(put("/users/{id}", nonExistingId)
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))
@@ -139,15 +151,13 @@ public class ClienteControllerTests {
 
     @Test
     public void deleteShouldReturnNoContentWhenIdExists() throws Exception {
-        mockMvc.perform(delete("/clientes/{id}", existingId)
-                .accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(delete("/users/{id}", existingId))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     public void deleteShouldReturnNotFoundWhenIdDoesNotExist() throws Exception {
-        mockMvc.perform(delete("/clientes/{id}", nonExistingId)
-                .accept(MediaType.APPLICATION_JSON))
+        mockMvc.perform(delete("/users/{id}", nonExistingId))
                 .andExpect(status().isNotFound());
     }
 }
