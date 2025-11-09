@@ -89,6 +89,14 @@ public class User {
         return roles;
     }
 
+    public void addRole(Role role) {
+        roles.add(role);
+    }
+
+    public boolean hasRole(String roleName) {
+        return roles.stream().anyMatch(role -> role.getAuthority().equals(roleName));
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
