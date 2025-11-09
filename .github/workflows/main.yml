@@ -1,0 +1,113 @@
+# .github/workflows/deploy.yml
+name: Deploy CapitaERP
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Build and Test Backend
+      run: |
+        chmod +x mvnw
+        ./mvnw clean test
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test -- --watch=false --browsers=ChromeHeadless
+
+    - name: Build Angular
+      run: npm run build -- --configuration=production
+
+  build-and-push:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build Backend Image
+      run: |
+        cd backend
+        docker build -t capitaerp-backend:latest -t capitaerp-backend:${{ github.sha }} .
+
+    - name: Build Frontend Image
+      run: |
+        cd frontend
+        docker build -t capitaerp-frontend:latest -t capitaerp-frontend:${{ github.sha }} .
+
+    - name: Save Docker Images
+      run: |
+        docker save -o backend-image.tar capitaerp-backend:latest
+        docker save -o frontend-image.tar capitaerp-frontend:latest
+
+    - uses: actions/checkout@v4
+    - name: Deploy to aaPanel
+      uses: tunnaduong/aapanel-deploy-action@main
+      with:
+        panel_url: ${{ secrets.AAPANEL_HOST }}
+        webhook_key: ${{ secrets.AAPANEL_WEBHOOK_KEY }}
+        script: |
+          cd /www/wwwroot/capitaerp
+          
+          # Parar containers atuais
+          docker-compose down
+          
+          # Carregar novas imagens
+          docker load -i backend-image.tar
+          docker load -i frontend-image.tar
+          
+          # Iniciar serviços
+          docker-compose up -d
+          
+          # Limpeza
+          docker image prune -f
+      env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+
+    - name: Notify Success
+      uses: satackey/action-ntfy@v2
+      with:
+        url: ${{ secrets.NTFY_WEBHOOK }}
+        topic: "capitaerp-deployments"
+        title: "✅ CapitaERP Deploy Success"
+        message: "Deploy completed for ${{ github.repository }}"
+        tags: "white_check_mark,rocket"
