@@ -25,7 +25,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.erp.capitalerp.config.SecurityConfig;
 import com.erp.capitalerp.dto.ClienteDTO;
 import com.erp.capitalerp.services.ClienteService;
 import com.erp.capitalerp.services.excepitos.DatabaseException;
@@ -33,7 +32,7 @@ import com.erp.capitalerp.services.excepitos.ResourceNotFoundExcepiton;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(ClienteController.class)
-@Import(SecurityConfig.class)
+//@Import(SecurityConfig.class)
 public class ClienteControllerTests {
 
     @Autowired
