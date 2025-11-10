@@ -1,15 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { CanActivateFn, Router } from '@angular/router';
 
-import { AuthGuard } from './auth.guard';
+import { AdminGuard } from './admin.guard';
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
+import { AuthGuard } from './auth.guard';
 
-describe('authGuard', () => {
+describe('AdminGuard', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        AuthGuard,
+        AdminGuard,
         { provide: AuthService, useValue: {} }, // Mock AuthService
         { provide: Router, useValue: {} }, // Mock Router
         { provide: NotificationService, useValue: {} } // Mock NotificationService
