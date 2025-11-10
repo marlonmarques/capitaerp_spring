@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,10 +22,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.erp.capitalerp.config.TestSecurityConfig;
 import com.erp.capitalerp.dto.ClienteDTO;
 import com.erp.capitalerp.services.ClienteService;
 import com.erp.capitalerp.services.excepitos.DatabaseException;
@@ -32,7 +33,7 @@ import com.erp.capitalerp.services.excepitos.ResourceNotFoundExcepiton;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(ClienteController.class)
-//@Import(SecurityConfig.class)
+@Import(TestSecurityConfig.class)
 public class ClienteControllerTests {
 
     @Autowired
@@ -75,7 +76,6 @@ public class ClienteControllerTests {
     }
 
     @Test
-    @WithMockUser
     public void findAllShouldReturnPage() throws Exception {
         mockMvc.perform(get("/clientes")
                 .accept(MediaType.APPLICATION_JSON))
@@ -83,7 +83,6 @@ public class ClienteControllerTests {
     }
 
     @Test
-    @WithMockUser
     public void findByIdShouldReturnClienteDTOWhenIdExists() throws Exception {
         mockMvc.perform(get("/clientes/{id}", existingId)
                 .accept(MediaType.APPLICATION_JSON))
@@ -93,7 +92,6 @@ public class ClienteControllerTests {
     }
 
     @Test
-    @WithMockUser
     public void findByIdShouldReturnNotFoundWhenIdDoesNotExist() throws Exception {
         mockMvc.perform(get("/clientes/{id}", nonExistingId)
                 .accept(MediaType.APPLICATION_JSON))
@@ -104,6 +102,7 @@ public class ClienteControllerTests {
     public void insertShouldReturnClienteDTOCreated() throws Exception {
         String jsonBody = objectMapper.writeValueAsString(clienteDTO);
         mockMvc.perform(post("/clientes")
+                .with(jwt())
                 .content(jsonBody)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON))

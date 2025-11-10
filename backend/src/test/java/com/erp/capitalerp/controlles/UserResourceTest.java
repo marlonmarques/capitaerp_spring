@@ -24,6 +24,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.erp.capitalerp.config.TestSecurityConfig;
 import com.erp.capitalerp.dto.UserDTO;
 import com.erp.capitalerp.dto.UserInsertDTO;
 import com.erp.capitalerp.dto.UserUpdateDTO;
@@ -35,7 +36,7 @@ import com.erp.capitalerp.services.excepitos.ResourceNotFoundExcepiton;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(UserResource.class)
-//@Import(SecurityConfig.class)
+@Import(TestSecurityConfig.class)
 public class UserResourceTest {
 
     @Autowired

@@ -5,6 +5,7 @@ import { filter } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import { User } from '../../core/auth/models/user.model';
 
+
 interface MenuItem {
   label: string;
   icon: string;
@@ -74,7 +75,7 @@ export class MainLayoutComponent implements OnInit {
 
   private updateBreadcrumb(): void {
     const url = this.router.url;
-    
+
     if (url.includes('/dashboard')) {
       this.breadcrumbItems = [{ label: 'Dashboard' }];
     } else if (url.includes('/products')) {

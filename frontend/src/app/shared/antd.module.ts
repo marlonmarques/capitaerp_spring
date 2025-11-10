@@ -1,6 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
+import { UserOutline, MenuFoldOutline, DashboardOutline, SettingOutline, LogoutOutline, ShoppingOutline, FolderOutline,  } from '@ant-design/icons-angular/icons';
 
 
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
@@ -59,10 +59,21 @@ const NG_ZORRO_MODULES = [
   NzEmptyModule
 ];
 
+const NG_ZORRO_ICONS = [
+  UserOutline,
+  MenuFoldOutline,
+  DashboardOutline,
+  SettingOutline,
+  LogoutOutline,
+  ShoppingOutline,
+  FolderOutline
+];
+
 @NgModule({
   declarations: [],
   imports: [
     CommonModule,
+    NzIconModule.forRoot(NG_ZORRO_ICONS),
     ...NG_ZORRO_MODULES
   ],
   exports: [

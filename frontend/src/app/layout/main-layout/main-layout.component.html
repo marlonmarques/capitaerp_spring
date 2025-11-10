@@ -1,22 +1,22 @@
 <nz-layout class="layout">
-  <nz-sider 
-    nzCollapsible 
+  <nz-sider
+    nzCollapsible
     [(nzCollapsed)]="isCollapsed"
     [nzWidth]="256"
     [nzTrigger]="null"
     class="sider">
-    
+
     <div class="logo">
       <h2>{{ isCollapsed ? 'CE' : 'Capital ERP' }}</h2>
     </div>
 
     <ul nz-menu nzTheme="dark" nzMode="inline">
-      <li 
-        nz-menu-item 
+      <li
+        nz-menu-item
         *ngFor="let item of menuItems"
         [nzSelected]="router.isActive(item.link || '', false)"
         (click)="item.link && router.navigate([item.link])">
-        
+
         <i nz-icon [nzType]="item.icon"></i>
         <span>{{ item.label }}</span>
       </li>
@@ -26,9 +26,9 @@
   <nz-layout>
     <nz-header class="header">
       <div class="header-left">
-        <button 
-          nz-button 
-          nzType="text" 
+        <button
+          nz-button
+          nzType="text"
           (click)="isCollapsed = !isCollapsed"
           class="trigger">
           <i nz-icon [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"></i>

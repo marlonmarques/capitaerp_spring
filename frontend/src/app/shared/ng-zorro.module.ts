@@ -1,5 +1,14 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import {
+  UserOutline,
+  MenuFoldOutline,
+  DashboardOutline,
+  SettingOutline,
+  LogoutOutline,
+  ShoppingOutline,
+  FolderOutline
+} from '@ant-design/icons-angular/icons';
 
 // NG-ZORRO Modules
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
@@ -44,7 +53,7 @@ const NG_ZORRO_MODULES = [
   NzLayoutModule,
   NzMenuModule,
   NzBreadCrumbModule,
-  NzIconModule,
+  //NzIconModule,
   NzButtonModule,
   NzDropDownModule,
   NzSpinModule,
@@ -83,9 +92,19 @@ const NG_ZORRO_MODULES = [
   declarations: [],
   imports: [
     CommonModule,
+    NzIconModule.forRoot([
+      UserOutline,
+      MenuFoldOutline,
+      DashboardOutline,
+      SettingOutline,
+      LogoutOutline,
+      ShoppingOutline,
+      FolderOutline
+    ]),
     ...NG_ZORRO_MODULES
   ],
   exports: [
+    NzIconModule,
     ...NG_ZORRO_MODULES
   ]
 })
