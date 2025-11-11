@@ -18,22 +18,20 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.erp.capitalerp.config.TestSecurityConfig;
 import com.erp.capitalerp.dto.ClienteDTO;
 import com.erp.capitalerp.services.ClienteService;
 import com.erp.capitalerp.services.excepitos.DatabaseException;
 import com.erp.capitalerp.services.excepitos.ResourceNotFoundExcepiton;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-@WebMvcTest(ClienteController.class)
-@Import(TestSecurityConfig.class)
+@WebMvcTest(value = ClienteController.class, excludeAutoConfiguration = {SecurityAutoConfiguration.class})
 public class ClienteControllerTests {
 
     @Autowired
