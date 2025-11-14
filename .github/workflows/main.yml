@@ -98,7 +98,14 @@ jobs:
         docker push "$IMAGE_NAME_FRONTEND:latest"
         docker push "$IMAGE_NAME_FRONTEND:${{ github.sha }}"
 
+    - name: Validate aaPanel webhook URL
+      run: |
+        if [ -z "${{ secrets.AAPANEL_WEBHOOK_URL }}" ]; then
+          echo "Erro: AAPANEL_WEBHOOK_URL não está definido."
+          exit 1
+        fi
+
     - name: Deploy via aaPanel Webhook
       run: |
         echo "Triggering aaPanel deploy webhook..."
-        curl -X POST "${{ secrets.AAPANEL_HOST }}/hook?access_key=${{ secrets.AAPANEL_WEBHOOK_KEY }}"
+        curl -fsS --retry 3 --max-time 10 -X POST "${{ secrets.AAPANEL_WEBHOOK_URL }}"
