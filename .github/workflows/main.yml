@@ -62,19 +62,43 @@ jobs:
     environment: production
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
+    permissions:
+      contents: read
+      packages: write
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build Docker Images
+    - name: Log in to GitHub Container Registry (GHCR)
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and Push Docker Images
       run: |
-        cd backend && docker build -t capitaerp-backend:${{ github.sha }} .
-        cd ../frontend && docker build -t capitaerp-frontend:${{ github.sha }} .
+        IMAGE_OWNER=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')
+        IMAGE_NAME_BACKEND="ghcr.io/$IMAGE_OWNER/${{ github.event.repository.name }}/capitaerp-backend"
+        IMAGE_NAME_FRONTEND="ghcr.io/$IMAGE_OWNER/${{ github.event.repository.name }}/capitaerp-frontend"
+        
+        echo "Pushing Backend to: $IMAGE_NAME_BACKEND:${{ github.sha }}"
+        echo "Pushing Frontend to: $IMAGE_NAME_FRONTEND:${{ github.sha }}"
+
+        # Constrói e dá push no Backend
+        cd backend
+        docker build -t "$IMAGE_NAME_BACKEND:latest" -t "$IMAGE_NAME_BACKEND:${{ github.sha }}" .
+        docker push "$IMAGE_NAME_BACKEND:latest"
+        docker push "$IMAGE_NAME_BACKEND:${{ github.sha }}"
+        
+        # Constrói e dá push no Frontend
+        cd ../frontend
+        docker build -t "$IMAGE_NAME_FRONTEND:latest" -t "$IMAGE_NAME_FRONTEND:${{ github.sha }}" .
+        docker push "$IMAGE_NAME_FRONTEND:latest"
+        docker push "$IMAGE_NAME_FRONTEND:${{ github.sha }}"
 
     - name: Deploy via aaPanel Webhook
-      uses: tunnaduong/aapanel-auto-deploy-action@v1.0.0
-      with:
-        panel_url: ${{ secrets.AAPANEL_PANEL_URL }}
-        webhook_key: ${{ secrets.AAPANEL_WEBHOOK_KEY }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN }}
+      run: |
+        echo "Triggering aaPanel deploy webhook..."
+        curl -X POST "${{ secrets.AAPANEL_PANEL_URL }}/hook?access_key=${{ secrets.AAPANEL_WEBHOOK_KEY }}"
