@@ -8,7 +8,6 @@
 /data
 
 # Miscellaneous
-Dockerfile
 deploy.yml
 deploy.sh
 .env
