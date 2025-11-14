@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
 
 env:
-  JAVA_OPTS: ${{ secrets.JAVA_OPTS }}
+  JAVA_OPTS: ${{ vars.JAVA_OPTS }}
 
 jobs:
   test-backend:
@@ -100,7 +100,7 @@ jobs:
 
     - name: Validate aaPanel webhook URL
       run: |
-        if [ -z "${{ secrets.AAPANEL_WEBHOOK_URL }}" ]; then
+        if [ -z "${{ vars.AAPANEL_WEBHOOK_URL }}" ]; then
           echo "Erro: AAPANEL_WEBHOOK_URL não está definido."
           exit 1
         fi
@@ -108,4 +108,4 @@ jobs:
     - name: Deploy via aaPanel Webhook
       run: |
         echo "Triggering aaPanel deploy webhook..."
-        curl -fsS --retry 3 --max-time 10 -X POST "${{ secrets.AAPANEL_WEBHOOK_URL }}"
+        curl -fsS --retry 3 --max-time 10 -X POST "${{ vars.AAPANEL_WEBHOOK_URL }}"
