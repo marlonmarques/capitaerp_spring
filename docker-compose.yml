@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: capitaerp-backend
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/capitalerp
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-user}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-pass}
+      - SQLITE_PATH=/app/data/dados_prod.sqlite3
+      - JAVA_OPTS=${JAVA_OPTS:-"-Xmx512m -Xms256m"}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - db
+    networks:
+      - capitaerp-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: capitaerp-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - capitaerp-network
+
+  db:
+    image: postgres:15
+    container_name: capitaerp-db
+    environment:
+      - POSTGRES_DB=capitalerp
+      - POSTGRES_USER=${POSTGRES_USER:-user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - capitaerp-network
+    # ports:
+    #   - "5433:5432" 
+
+volumes:
+  postgres_data:
+
+networks:
+  capitaerp-network:
+    driver: bridge

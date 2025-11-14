@@ -1,8 +1,9 @@
 export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:8080',
+  production: (window as any).env?.production || false,
+  apiUrl: (window as any).env?.apiUrl || 'http://localhost:8080',
   oauth: {
-    clientId: 'capital-erp-frontend',
-    clientSecret: 'secret'
+    clientId: 'myclientid',
+    clientSecret: 'myclientsecret',
+    scope: 'read write'
   }
 };

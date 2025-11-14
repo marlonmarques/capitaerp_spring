@@ -17,7 +17,7 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.PlatformTransactionManager;
 
-@Profile("test")
+@Profile("!prod")
 @EnableJpaRepositories(
         basePackages = "com.erp.capitalerp.repositories",
         entityManagerFactoryRef = "h2EntityManager",

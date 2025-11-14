@@ -3,7 +3,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { HttpClientModule, HTTP_INTERCEPTORS, HttpClient } from '@angular/common/http';
 
 import { NZ_I18N, pt_BR } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
@@ -20,9 +20,17 @@ import { CategoriesComponent } from './pages/categories/categories.component';
 import { UsersComponent } from './pages/users/users.component';
 import { NgZorroModule } from './shared/ng-zorro.module';
 import { LoginModule } from './shared/login/login.module';
-// Interceptors
+
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 import { LoadingInterceptor } from './core/interceptors/loading.interceptor';
+import { firstValueFrom } from 'rxjs';
+
+export async function initializeApp(http: HttpClient): Promise<any> {
+  const response = await firstValueFrom(http.get('./assets/env.json'));
+  (window as any).env = response;
+  return response;
+}
+
 
 @NgModule({
   declarations: [

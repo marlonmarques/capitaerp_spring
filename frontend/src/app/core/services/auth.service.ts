@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { Router } from '@angular/router';
 
@@ -28,34 +28,88 @@ export class AuthService {
   }
 
   login(credentials: LoginRequest): Observable<AuthResponse> {
-    const formData = new FormData();
-    formData.append('username', credentials.email);
-    formData.append('password', credentials.password);
-    formData.append('grant_type', 'password');
+    const body = new URLSearchParams();
+    body.set('username', credentials.email);
+    body.set('password', credentials.password);
+    body.set('grant_type', 'password');
+    body.set('scope', environment.oauth.scope);
 
-    return this.http.post<AuthResponse>(`${this.API_URL}/oauth/token`, formData).pipe(
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + btoa(`${environment.oauth.clientId}:${environment.oauth.clientSecret}`)
+    });
+
+    return this.http.post<AuthResponse>(`${this.API_URL}/oauth2/token`, body.toString(), { headers }).pipe(
       tap(response => {
         this.storeTokens(response);
-        this.storeUser(response.user);
-        this.currentUserSubject.next(response.user);
+        // Buscar informações do usuário após login bem-sucedido
+        this.loadUserInfo().subscribe({
+          next: (user) => {
+            this.storeUser(user);
+            this.currentUserSubject.next(user);
+          },
+          error: (error) => {
+            console.error('Erro ao carregar informações do usuário:', error);
+          }
+        });
       })
     );
   }
 
   refreshToken(): Observable<AuthResponse> {
     const refreshToken = this.getRefreshToken();
-    const formData = new FormData();
-    formData.append('grant_type', 'refresh_token');
-    formData.append('refresh_token', refreshToken!);
 
-    return this.http.post<AuthResponse>(`${this.API_URL}/oauth/token`, formData).pipe(
+    const body = new URLSearchParams();
+    body.set('grant_type', 'refresh_token');
+    body.set('refresh_token', refreshToken!);
+    body.set('scope', environment.oauth.scope);
+
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + btoa(`${environment.oauth.clientId}:${environment.oauth.clientSecret}`)
+    });
+
+    return this.http.post<AuthResponse>(`${this.API_URL}/oauth2/token`, body.toString(), { headers }).pipe(
       tap(response => {
         this.storeTokens(response);
       })
     );
   }
 
+  loadUserInfo(): Observable<User> {
+    const headers = new HttpHeaders({
+      'Authorization': 'Bearer ' + this.getToken()
+    });
+
+    return this.http.get<User>(`${this.API_URL}/users/me`, { headers }).pipe(
+      tap(user => {
+        this.storeUser(user);
+        this.currentUserSubject.next(user);
+      })
+    );
+  }
+
   logout(): void {
+    // Chamar endpoint de logout do backend se necessário
+    const token = this.getToken();
+    const refreshToken = this.getRefreshToken();
+
+    if (token) {
+      const body = new URLSearchParams();
+      body.set('token', token);
+      body.set('refresh_token', refreshToken!);
+
+      const headers = new HttpHeaders({
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(`${environment.oauth.clientId}:${environment.oauth.clientSecret}`)
+      });
+
+      this.http.post(`${this.API_URL}/oauth2/revoke`, body.toString(), { headers }).subscribe({
+        next: () => console.log('Logout realizado no servidor'),
+        error: (error) => console.error('Erro no logout remoto:', error)
+      });
+    }
+
     this.clearStorage();
     this.currentUserSubject.next(null);
     this.router.navigate(['/login']);
@@ -75,7 +129,10 @@ export class AuthService {
     if (!token) return false;
 
     const payload = this.decodeToken(token);
-    return payload && !this.isTokenExpired(payload) ? false : true;
+    if (!payload) return false;
+
+    // Verificar se o token está expirado
+    return !this.isTokenExpired(payload);
   }
 
   hasRole(role: string): boolean {
@@ -90,7 +147,9 @@ export class AuthService {
 
   private storeTokens(response: AuthResponse): void {
     localStorage.setItem(this.TOKEN_KEY, response.access_token);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refresh_token);
+    if (response.refresh_token) {
+      localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refresh_token);
+    }
   }
 
   private storeUser(user: User): void {
@@ -113,13 +172,33 @@ export class AuthService {
   private decodeToken(token: string): TokenPayload | null {
     try {
       const payload = token.split('.')[1];
-      return JSON.parse(atob(payload));
+      // Adicionar padding se necessário para base64
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const decodedPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(decodedPayload);
     } catch (error) {
+      console.error('Erro ao decodificar token:', error);
       return null;
     }
   }
 
   private isTokenExpired(payload: TokenPayload): boolean {
-    return Date.now() >= payload.exp * 1000;
+    // O payload.exp está em segundos, converter para milissegundos
+    const expirationDate = new Date(payload.exp * 1000);
+    return expirationDate < new Date();
+  }
+
+  // Método para adicionar token às requisições automaticamente
+  getAuthHeaders(): HttpHeaders {
+    const token = this.getToken();
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
   }
 }

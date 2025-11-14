@@ -4,6 +4,7 @@ export interface User {
   firstName: string;
   lastName: string;
   roles: string[];
+  permissions?: string[];
 }
 
 export interface LoginRequest {
@@ -14,13 +15,17 @@ export interface LoginRequest {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+  refresh_token?: string;
   expires_in: number;
-  refresh_token: string;
-  user: User;
+  scope: string;
+  jti?: string;
 }
 
 export interface TokenPayload {
   user_name: string;
-  authorities: string[];
+  scope: string[];
   exp: number;
+  authorities: string[];
+  jti: string;
+  client_id: string;
 }

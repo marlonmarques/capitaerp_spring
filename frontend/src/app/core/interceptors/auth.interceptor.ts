@@ -17,18 +17,20 @@ export class AuthInterceptor implements HttpInterceptor {
   ) {}
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+    //if (this.isApiRequest(request)) {
     const token = this.authService.getToken();
 
     if (token) {
       request = this.addToken(request, token);
     }
+  //}
 
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
-        if (error.status === 401 && token) {
+        if (error.status === 401 && this.authService.getToken()) {
           return this.handle401Error(request, next);
         }
-        
+
         if (error.status === 403) {
           this.notification.error('Acesso negado!');
           this.authService.logout();
@@ -37,6 +39,10 @@ export class AuthInterceptor implements HttpInterceptor {
         return throwError(() => error);
       })
     );
+  }
+
+  private isApiRequest(request: HttpRequest<any>): boolean {
+    return request.url.includes('/api/') || request.url.includes('/oauth/');
   }
 
   private addToken(request: HttpRequest<any>, token: string): HttpRequest<any> {

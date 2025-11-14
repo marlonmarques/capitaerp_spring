@@ -5,9 +5,11 @@
 /tmp
 /out-tsc
 /bazel-out
+/data
 
 # Miscellaneous
 Dockerfile
-docker-compose.yml
 deploy.yml
 deploy.sh
+.env
+variaveis

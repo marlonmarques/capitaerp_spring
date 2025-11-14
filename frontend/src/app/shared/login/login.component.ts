@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -14,9 +14,12 @@ import { LoadingService } from '../../core/services/loading.service';
   styleUrls: ['./login.component.scss']
 })
 export class LoginComponent implements OnInit {
+[x: string]: any;
   loginForm: FormGroup;
   loading = false;
   returnUrl = '';
+  readonly passwordVisible = signal(false);
+  currentYear: number;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -27,6 +30,7 @@ export class LoginComponent implements OnInit {
     private loadingService: LoadingService
   ) {
     this.loginForm = this.createForm();
+    this.currentYear = new Date().getFullYear();
   }
 
   ngOnInit(): void {
@@ -38,6 +42,10 @@ export class LoginComponent implements OnInit {
 
     // Obtém a URL de retorno dos query parameters
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+  }
+
+  togglePasswordVisibility(): void {
+    this.passwordVisible.set(!this.passwordVisible());
   }
 
   onSubmit(): void {
@@ -61,13 +69,13 @@ export class LoginComponent implements OnInit {
           },
           error: (error) => {
             let errorMessage = 'Erro ao fazer login. Tente novamente.';
-            
+
             if (error.status === 401) {
               errorMessage = 'Email ou senha inválidos.';
             } else if (error.status === 0) {
               errorMessage = 'Servidor indisponível. Tente novamente mais tarde.';
             }
-            
+
             this.notification.error(errorMessage);
           }
         });
