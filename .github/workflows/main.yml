@@ -75,7 +75,7 @@ jobs:
       with:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ secrets.TOKEN }}
 
     - name: Build and Push Docker Images
       run: |
@@ -101,4 +101,4 @@ jobs:
     - name: Deploy via aaPanel Webhook
       run: |
         echo "Triggering aaPanel deploy webhook..."
-        curl -X POST "${{ secrets.AAPANEL_PANEL_URL }}/hook?access_key=${{ secrets.AAPANEL_WEBHOOK_KEY }}"
+        curl -X POST "${{ secrets.AAPANEL_HOST }}/hook?access_key=${{ secrets.AAPANEL_WEBHOOK_KEY }}"
