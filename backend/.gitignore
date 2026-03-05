@@ -34,7 +34,7 @@ build/
 
 # Miscellaneous
 .env
-.agent
+/.agent
 fix_tests.py
 patch_configs.py
 refactor_architecture.py
