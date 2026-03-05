@@ -15,6 +15,7 @@ export class AuthService {
   private readonly TOKEN_KEY = 'access_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
   private readonly USER_KEY = 'current_user';
+  private readonly TENANT_KEY = 'tenant_id';
 
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
@@ -31,27 +32,33 @@ export class AuthService {
     const body = new URLSearchParams();
     body.set('username', credentials.email);
     body.set('password', credentials.password);
+    body.set('tenantIdentifier', credentials.tenantIdentifier);
     body.set('grant_type', 'password');
     body.set('scope', environment.oauth.scope);
 
     const headers = new HttpHeaders({
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + btoa(`${environment.oauth.clientId}:${environment.oauth.clientSecret}`)
+      'Authorization': 'Basic ' + btoa(`${environment.oauth.clientId}:${environment.oauth.clientSecret}`),
+      'X-Tenant-ID': credentials.tenantIdentifier
     });
 
     return this.http.post<AuthResponse>(`${this.API_URL}/oauth2/token`, body.toString(), { headers }).pipe(
       tap(response => {
         this.storeTokens(response);
-        // Buscar informações do usuário após login bem-sucedido
-        this.loadUserInfo().subscribe({
-          next: (user) => {
-            this.storeUser(user);
-            this.currentUserSubject.next(user);
-          },
-          error: (error) => {
-            console.error('Erro ao carregar informações do usuário:', error);
-          }
-        });
+        this.storeTenant(credentials.tenantIdentifier);
+        // Extrair dados do usuário diretamente do payload do JWT
+        const payload = this.decodeToken(response.access_token);
+        if (payload) {
+          const user: User = {
+            id: 0,
+            email: payload.username,
+            firstName: payload.username,
+            lastName: '',
+            roles: payload.authorities ?? []
+          };
+          this.storeUser(user);
+          this.currentUserSubject.next(user);
+        }
       })
     );
   }
@@ -137,12 +144,22 @@ export class AuthService {
 
   hasRole(role: string): boolean {
     const user = this.currentUserSubject.value;
-    return user ? user.roles.includes(role) : false;
+    if (user) return user.roles.includes(role);
+    // fallback: verificar diretamente no token
+    const token = this.getToken();
+    if (!token) return false;
+    const payload = this.decodeToken(token);
+    return payload?.authorities?.includes(role) ?? false;
   }
 
   hasAnyRole(roles: string[]): boolean {
     const user = this.currentUserSubject.value;
-    return user ? roles.some(role => user.roles.includes(role)) : false;
+    if (user) return roles.some(role => user.roles.includes(role));
+    // fallback: verificar diretamente no token
+    const token = this.getToken();
+    if (!token) return false;
+    const payload = this.decodeToken(token);
+    return roles.some(role => payload?.authorities?.includes(role) ?? false);
   }
 
   private storeTokens(response: AuthResponse): void {
@@ -167,6 +184,7 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem(this.TENANT_KEY);
   }
 
   private decodeToken(token: string): TokenPayload | null {
@@ -196,9 +214,25 @@ export class AuthService {
   // Método para adicionar token às requisições automaticamente
   getAuthHeaders(): HttpHeaders {
     const token = this.getToken();
-    return new HttpHeaders({
+    const tenantId = this.getTenant();
+
+    let headers = new HttpHeaders({
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     });
+
+    if (tenantId) {
+      headers = headers.set('X-Tenant-ID', tenantId);
+    }
+
+    return headers;
+  }
+
+  getTenant(): string | null {
+    return localStorage.getItem(this.TENANT_KEY);
+  }
+
+  private storeTenant(tenantId: string): void {
+    localStorage.setItem(this.TENANT_KEY, tenantId);
   }
 }

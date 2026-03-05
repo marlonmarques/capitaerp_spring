@@ -1,0 +1,299 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\InvoiceEletronic;
+use App\Helpers\functions;
+use Illuminate\Support\Carbon;
+
+class NfseIniGeneratorService
+{
+    public function gerarIni(InvoiceEletronic $nota): string
+    {
+        $empresa = $nota->empresa;
+
+        // Regra de Negócio:
+        // MEI (4) -> Padrão Nacional
+        // Simples/Lucro no DF -> Padrão Provedor (ISSNet/ABRASF)
+        $isNacional = ($empresa->reg_fiscal == 4);
+
+        if ($isNacional) {
+            return $this->gerarIniPadraoNacional($nota);
+        } else {
+            return $this->gerarIniPadraoProvedor($nota);
+        }
+    }
+
+    // --- 1. GERADOR PADRÃO NACIONAL (MEI) ---
+    private function gerarIniPadraoNacional(InvoiceEletronic $nota)
+    {
+        $empresa = $nota->empresa;
+        $cliente = $nota->cliente;
+        // Pega endereço padrão ou o primeiro que achar
+        $enderecoCliente = $cliente->enderecos()->where('padrao', 1)->first() ?? $cliente->enderecos()->first();
+        $discriminacao = $this->limparTexto($nota->desc_service);
+
+        // Mapeamento de Regime para Nacional
+        if ($empresa->reg_fiscal == 4) {
+            $optanteSn = "2"; // MEI
+            $regimeEspecial = "5";
+        } elseif (in_array($empresa->reg_fiscal, [1, 5, 6])) {
+            $optanteSn = "3"; // Simples Nacional (ME/EPP)
+            $regimeEspecial = "0";
+        } else {
+            $optanteSn = "1"; // Não Optante
+            $regimeEspecial = "0";
+        }
+
+        $ini  = "[IdentificacaoNFSe]" . PHP_EOL;
+        $ini .= "Numero=" . ($nota->numero_nfse ?? $nota->numero) . PHP_EOL;
+        $ini .= "TipoXML=RPS" . PHP_EOL . PHP_EOL;
+
+        $ini .= "[InfDPS]" . PHP_EOL;
+        $ini .= "dhEmi=" . $this->getDataFormatada($nota->data_emissao, 'Y-m-d\TH:i:s') . PHP_EOL;
+        $ini .= "dCompet=" . $this->getDataFormatada($nota->data_emissao, 'Y-m-d') . PHP_EOL;
+        $ini .= "cLocEmi=" . $this->limparNum($empresa->cidade) . PHP_EOL;
+
+        $ini .= "[Prestador]" . PHP_EOL;
+        $ini .= "CNPJ=" . $this->limparNum($empresa->cpf ?? $empresa->cnpj) . PHP_EOL;
+        // Nacional não usa IM na maioria dos casos, mas se precisar, descomente
+        // $ini .= "InscricaoMunicipal=" . $this->limparNum($empresa->inscmun) . PHP_EOL;
+
+        $ini .= "[Servico]" . PHP_EOL;
+        $ini .= "cTribNac=050101" . PHP_EOL;
+        $ini .= "cNBS=120011000" . PHP_EOL;
+        $ini .= "xDescServ=" . $discriminacao . PHP_EOL;
+
+        $ini .= "[Valores]" . PHP_EOL;
+        $ini .= "vServ=" . $this->formatarValor($nota->valor_servicos) . PHP_EOL;
+        $ini .= "vLiq=" . $this->formatarValor($nota->fatura_liquido) . PHP_EOL;
+
+        if($optanteSn != "1") {
+            $ini .= "trib=2" . PHP_EOL;
+        }
+
+        return $ini;
+    }
+
+    // --- 2. GERADOR PADRÃO PROVEDOR (ISSNet/ABRASF) ---
+    private function gerarIniPadraoProvedor(InvoiceEletronic $nota)
+    {
+        $empresa = $nota->empresa;
+        $cliente = $nota->cliente;
+        $enderecoCliente = $cliente->enderecos()->where('padrao', 1)->first() ?? $cliente->enderecos()->first();
+
+        // Correção de Datas
+        $dataEmissao = $this->getDataFormatada($nota->data_emissao, 'd/m/Y');
+
+        $ini  = "[IdentificacaoNFSe]" . PHP_EOL;
+        $ini .= "Numero=" . ($nota->numero_nfse ?? $nota->numero) . PHP_EOL;
+        $ini .= "TipoXML=RPS" . PHP_EOL . PHP_EOL;
+
+        $ini .= "[IdentificacaoRps]" . PHP_EOL;
+        $ini .= "Producao=" . ($empresa->anbne == 1 ? '1' : '2'). PHP_EOL;
+        $ini .= "Status=1" . PHP_EOL;
+        $ini .= "TipoTributacaoRps=T" . PHP_EOL;
+        $ini .= "Numero=" . ($nota->numero_nfse ?? $nota->numero) . PHP_EOL;
+        $ini .= "Serie=" . ($nota->serie ?? '1') . PHP_EOL;
+        $ini .= "Tipo=1" . PHP_EOL;
+        $ini .= "DataEmissao=" . $dataEmissao . PHP_EOL;
+        $ini .= "Competencia=" . $dataEmissao . PHP_EOL;
+        $ini .= "NaturezaOperacao=" . ($nota->natureza_operacao ?? '1') . PHP_EOL . PHP_EOL;
+        $ini .= "OutrasInformacoes=" . $this->limparTexto($nota->informacoes_complementares ?? '') . PHP_EOL . PHP_EOL;
+
+
+        // --- PRESTADOR ---
+        $ini .= "[Prestador]" . PHP_EOL;
+        $ini .= "CNPJ=" . $this->limparNum($empresa->cpf ?? $empresa->cnpj) . PHP_EOL;
+        $ini .= "InscricaoMunicipal=" . $this->limparNum($empresa->inscmun) . PHP_EOL;
+        $ini .= "RazaoSocial=" . $this->limparTexto($empresa->razao) . PHP_EOL;
+        $ini .= "CodigoMunicipio=" . $this->limparNum($empresa->cidade) . PHP_EOL;
+
+        $ini .= "Logradouro=" . $this->limparTexto($empresa->endereco) . PHP_EOL;
+        $ini .= "Numero=" . ($empresa->numero ?? 'S/N') . PHP_EOL;
+        $ini .= "Bairro=" . $this->limparTexto($empresa->bairro) . PHP_EOL;
+        $ini .= "CEP=" . $this->limparNum($empresa->cep) . PHP_EOL;
+        $ini .= "CodigoPais=1058" . PHP_EOL;
+
+        // CORREÇÃO: Usar o método seguro resolveUF
+        $ini .= "UF=" . $this->resolveUF($empresa->uf) . PHP_EOL;
+        $ini .= "xPais=BRASIL" . PHP_EOL;
+
+        $ini .= "CodigoPais=1058" . PHP_EOL;
+        $ini .= "Telefone=" . $this->limparNum($empresa->phone) . PHP_EOL;
+        $ini .= "Email=" . $empresa->email . PHP_EOL . PHP_EOL;
+
+        // --- CORREÇÃO DO REGIME (ERRO E166) ---
+        // 1 - Simples Nacional (ME/EPP) -> Deve enviar Regime 6
+        // 4 - MEI -> Deve enviar Regime 5
+        // Outros -> Regime 0 ou vazio (ou 8 para Presumido)
+
+        if ($empresa->reg_fiscal == 4) {
+            // MEI
+            $optante = '1';
+            $regime = '5'; // retMicroempresarioIndividual
+        } elseif (in_array($empresa->reg_fiscal, [1, 5, 6])) {
+            // Simples Nacional (ME/EPP)
+            $optante = '1';
+            $regime = '6'; // retMicroempresarioEmpresaPP (A CORREÇÃO É AQUI!)
+        } else {
+            // Regime Normal
+            $optante = '2';
+            $regime = ''; // Geralmente vazio para Normal, ou use '8' para Presumido se der erro
+        }
+
+        $ini .= "OptanteSN=" . $optante . PHP_EOL;
+        if (!empty($regime)) {
+            $ini .= "Regime=" . $regime . PHP_EOL;
+        }
+        $ini .= "IncentivadorCultural=2" . PHP_EOL . PHP_EOL;
+
+        // --- TOMADOR ---
+        $ini .= "[Tomador]" . PHP_EOL;
+        $ini .= "Tipo=1" . PHP_EOL;
+        $ini .= "CNPJCPF=" . $this->limparNum($cliente->cpf_cnpj) . PHP_EOL;
+        $ini .= "RazaoSocial=" . $this->limparTexto($cliente->razao ?? $cliente->fullName) . PHP_EOL;
+
+        // Importante para ISSNet: Tomador no Brasil = 2
+        $ini .= "TomadorExterior=2" . PHP_EOL;
+
+        if ($enderecoCliente) {
+            $ini .= "Logradouro=" . $this->limparTexto($enderecoCliente->rua) . PHP_EOL;
+            $ini .= "Numero=" . ($enderecoCliente->numero ?? 'S/N') . PHP_EOL;
+            $ini .= "Bairro=" . $this->limparTexto($enderecoCliente->bairro) . PHP_EOL;
+            $ini .= "CodigoMunicipio=" . $this->limparNum($enderecoCliente->cidade) . PHP_EOL;
+
+            // CORREÇÃO: Usar resolveUF aqui também
+            $ini .= "UF=" . $this->resolveUF($enderecoCliente->estado) . PHP_EOL;
+
+            $ini .= "CEP=" . $this->limparNum($enderecoCliente->cep) . PHP_EOL;
+            $ini .= "CodigoPais=1058" . PHP_EOL;
+        }
+        if(!empty($cliente->email)) $ini .= "Email=" . $cliente->email . PHP_EOL;
+        if(!empty($cliente->phone)) $ini .= "Telefone=" . $this->limparNum($cliente->phone) . PHP_EOL;
+        $ini .= PHP_EOL;
+
+        // --- SERVIÇO ---
+        $ini .= "[Servico]" . PHP_EOL;
+
+        $itemServico = $this->formatarItemLista($nota->tipo_operacao);
+
+        $ini .= "ItemListaServico=" . $itemServico . PHP_EOL;
+        $ini .= "CodigoCnae=" . $this->limparNum($nota->origin) . PHP_EOL;
+        $ini .= "CodigoTributacaoMunicipio=" . $this->limparNum($itemServico) . PHP_EOL;
+
+        $ini .= "Discriminacao=" . $this->limparTexto($nota->desc_service) . PHP_EOL;
+        $ini .= "CodigoMunicipio=" . $this->limparNum($empresa->cidade) . PHP_EOL;
+        $ini .= "ExigibilidadeISS=1" . PHP_EOL;
+        $ini .= "MunicipioIncidencia=" . $this->limparNum($nota->peso_liquido ?? $empresa->cidade) . PHP_EOL;
+        $ini .= "CodigoPais=1058" . PHP_EOL;
+        $ini .= "ResponsavelRetencao=" . ($nota->IssRetido === 1 ? '1' : '') . PHP_EOL;
+        $ini .= "UFPrestacao=" . $this->resolveUF($empresa->uf) . PHP_EOL;
+
+        // NBS (Se necessário para ISSNet, senão pode comentar)
+        $nbsDefault = '120020100';
+        $nbs = $nota->codigo_nbs ? $this->limparNum($nota->codigo_nbs) : $nbsDefault;
+        $nbs = str_pad($nbs, 9, '0', STR_PAD_RIGHT);
+        $ini .= "CodigoNbs=" . $nbs . PHP_EOL;
+
+        // --- VALORES ---
+        $ini .= "[Valores]" . PHP_EOL;
+
+        // CORREÇÃO: Removido o $this->$this duplicado
+        $vServico = $this->formatarValor($nota->valor_servicos);
+        $vIss = $this->formatarValor($nota->valor_issqn ?? 0);
+
+        $ini .= "ValorServicos=" . $vServico . PHP_EOL;
+        $ini .= "ValorDeducoes=0" . PHP_EOL;
+        $ini .= "AliquotaDeducoes=0" . PHP_EOL;
+        $ini .= "ValorPis=0" . PHP_EOL;
+        $ini .= "AliquotaPis=0" . PHP_EOL;
+        $ini .= "ValorCofins=0" . PHP_EOL;
+        $ini .= "AliquotaCofins=0" . PHP_EOL;
+        $ini .= "ValorInss=0" . PHP_EOL;
+        $ini .= "ValorIr=0" . PHP_EOL;
+        $ini .= "ValorCsll=0" . PHP_EOL;
+        $ini .= "IssRetido=" . ($nota->IssRetido === 1 ? 1 : 2) . PHP_EOL;
+        $ini .= "OutrasRetencoes=0" . PHP_EOL;
+        $ini .= "DescontoIncondicionado=0" . PHP_EOL;
+        $ini .= "DescontoCondicionado=0" . PHP_EOL;
+        $ini .= "BaseCalculo=" . $vServico . PHP_EOL;
+
+        $aliq = $nota->valor_ii ?? 2.00;
+        $ini .= "Aliquota=" . $this->formatarValor($aliq) . PHP_EOL;
+        $ini .= "AliquotaSN=0" . PHP_EOL;
+        $ini .= "ValorIss=" . $vIss . PHP_EOL;
+        $ini .= "ValorIssRetido=" . $nota->valor_retencao_issqn . PHP_EOL;
+        $ini .= "ValorLiquidoNfse=" . $this->formatarValor($nota->fatura_liquido) . PHP_EOL;
+        $ini .= "ValorTotalNotaFiscal=" . $vServico . PHP_EOL;
+
+        return $ini;
+    }
+
+    // --- HELPERS INTERNOS ---
+
+    // Helper Inteligente para UF
+    private function resolveUF($estado)
+    {
+        // Se for número (ex: 53, 35), converte para sigla
+        if (is_numeric($estado)) {
+            // Mapeamento manual rápido ou uso do helper se ele suportar ID->Sigla
+            $estados = [
+                11=>'RO', 12=>'AC', 13=>'AM', 14=>'RR', 15=>'PA', 16=>'AP', 17=>'TO',
+                21=>'MA', 22=>'PI', 23=>'CE', 24=>'RN', 25=>'PB', 26=>'PE', 27=>'AL', 28=>'SE',
+                29=>'BA', 31=>'MG', 32=>'ES', 33=>'RJ', 35=>'SP', 41=>'PR', 42=>'SC', 43=>'RS',
+                50=>'MS', 51=>'MT', 52=>'GO', 53=>'DF'
+            ];
+            return $estados[(int)$estado] ?? 'DF';
+        }
+
+        // Se já for string (ex: 'DF' ou 'Distrito Federal')
+        if (is_string($estado)) {
+            // Se tem 2 letras, retorna maiúsculo
+            if (strlen($estado) == 2) return strtoupper($estado);
+            // Se for nome completo, precisaria converter, mas vamos assumir sigla
+        }
+
+        // Tenta usar o helper existente do sistema como fallback
+        try {
+            $uf = app(functions::class)->estados($estado);
+            if (is_array($uf)) {
+                return $uf['sigla'] ?? $uf['uf'] ?? 'DF';
+            }
+            if (is_string($uf) && strlen($uf) == 2) return $uf;
+        } catch (\Exception $e) {}
+
+        return 'DF'; // Último caso
+    }
+
+    private function limparNum($str)
+    {
+        if (is_array($str)) return '';
+        return preg_replace('/[^0-9]/', '', (string)$str);
+    }
+
+    private function limparTexto($str)
+    {
+        return substr(preg_replace('/[^a-zA-Z0-9 ]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', (string)$str)), 0, 255);
+    }
+
+    private function formatarValor($val)
+    {
+        return number_format((float)$val, 2, ',', '');
+    }
+
+    private function getDataFormatada($data, $formato)
+    {
+        if ($data instanceof Carbon) {
+            return $data->format($formato);
+        }
+        return date($formato, strtotime($data));
+    }
+
+    private function formatarItemLista($val)
+    {
+        $v = preg_replace('/[^0-9]/', '', $val);
+        if(strlen($v) == 4) return substr($v, 0, 2) . '.' . substr($v, 2, 2);
+        return $val;
+    }
+}

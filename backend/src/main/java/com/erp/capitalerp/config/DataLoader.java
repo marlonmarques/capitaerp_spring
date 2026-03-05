@@ -8,10 +8,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import com.erp.capitalerp.entities.Role;
-import com.erp.capitalerp.entities.User;
-import com.erp.capitalerp.repositories.RoleRepository;
-import com.erp.capitalerp.repositories.UserRepository;
+import com.erp.capitalerp.domain.usuarios.Role;
+import com.erp.capitalerp.domain.usuarios.User;
+import com.erp.capitalerp.infrastructure.persistence.usuarios.RoleRepository;
+import com.erp.capitalerp.infrastructure.persistence.usuarios.UserRepository;
 
 @Configuration
 @Profile("prod") // Só roda em produção

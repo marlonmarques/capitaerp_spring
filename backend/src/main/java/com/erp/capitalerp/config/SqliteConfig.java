@@ -12,11 +12,7 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Profile("!test")
-@EnableJpaRepositories(
-        basePackages = "com.erp.capitalerp.sqlite.repositories",
-        entityManagerFactoryRef = "sqliteEntityManager",
-        transactionManagerRef = "sqliteTransactionManager"
-)
+@EnableJpaRepositories(basePackages = "com.erp.capitalerp.sqlite.repositories", entityManagerFactoryRef = "sqliteEntityManager", transactionManagerRef = "sqliteTransactionManager")
 @Configuration
 public class SqliteConfig {
 
@@ -36,6 +32,10 @@ public class SqliteConfig {
         vendorAdapter.setGenerateDdl(false);
         vendorAdapter.setShowSql(false);
         em.setJpaVendorAdapter(vendorAdapter);
+
+        java.util.Map<String, Object> properties = new java.util.HashMap<>();
+        properties.put("hibernate.dialect", "org.hibernate.community.dialect.SQLiteDialect");
+        em.setJpaPropertyMap(properties);
 
         return em;
     }

@@ -1,82 +1,298 @@
-<nz-layout class="layout">
-  <nz-sider
-    nzCollapsible
-    [(nzCollapsed)]="isCollapsed"
-    [nzWidth]="256"
-    [nzTrigger]="null"
-    class="sider">
+<div class="flex h-screen bg-gray-100 dark:bg-slate-900 overflow-hidden font-sans transition-colors duration-300">
 
-    <div class="logo">
-      <h2>{{ isCollapsed ? 'CE' : 'Capital ERP' }}</h2>
+  <!-- Sidebar -->
+  <aside
+    class="bg-blue-900 dark:bg-slate-950 text-white transition-all duration-300 ease-in-out flex flex-col shadow-xl z-20"
+    [class.w-64]="!isCollapsed" [class.w-20]="isCollapsed">
+
+    <!-- Logo Section -->
+    <div [routerLink]="'/dashboard'" (click)="closeAllSubmenus()"
+      class="h-16 flex items-center px-4 bg-blue-950/50 dark:bg-slate-900/50 backdrop-blur-sm border-b border-blue-800 dark:border-slate-800 cursor-pointer hover:bg-blue-900/70 transition-colors">
+      <div
+        class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-white dark:bg-slate-800 rounded-lg shadow-inner overflow-hidden">
+        <img *ngIf="empresaService.configuracao()?.logoUrl; else placeholder"
+          [src]="empresaService.configuracao()?.logoUrl" class="max-w-full max-h-full object-contain" />
+        <ng-template #placeholder>
+          <span class="text-blue-900 dark:text-blue-400 font-bold text-xl uppercase italic">CE</span>
+        </ng-template>
+      </div>
+      <div *ngIf="!isCollapsed" class="ml-3 overflow-hidden transition-opacity duration-300">
+        <h2 class="text-lg font-bold truncate tracking-tight text-blue-50">
+          {{ empresaService.configuracao()?.nomeFantasia || 'Capital ERP' }}
+        </h2>
+      </div>
     </div>
 
-    <ul nz-menu nzTheme="dark" nzMode="inline">
-      <li
-        nz-menu-item
-        *ngFor="let item of menuItems"
-        [nzSelected]="router.isActive(item.link || '', false)"
-        (click)="item.link && router.navigate([item.link])">
+    <!-- Navigation -->
+    <nav class="flex-grow py-4 overflow-x-hidden overflow-y-auto custom-scrollbar">
+      <ul class="space-y-1 px-3 pb-8">
+        <li *ngFor="let item of filteredMenuItems" class="mb-1">
+          <!-- Standard menu item (no children) -->
+          <a *ngIf="!item.children" [routerLink]="item.link" (click)="closeAllSubmenus()"
+            routerLinkActive="bg-blue-600/50 text-white shadow-md border-l-4 border-blue-400"
+            [routerLinkActiveOptions]="{exact: item.link === '/dashboard'}"
+            class="flex items-center p-3 text-blue-100 rounded-md hover:bg-blue-800/50 hover:text-white transition-all group overflow-hidden"
+            [title]="isCollapsed ? item.label : ''">
+            <i [class]="item.icon + ' text-xl w-6 text-center group-hover:scale-110 transition-transform'"></i>
+            <span *ngIf="!isCollapsed" class="ml-3 font-medium whitespace-nowrap">{{ item.label }}</span>
+          </a>
 
-        <i nz-icon [nzType]="item.icon"></i>
-        <span>{{ item.label }}</span>
-      </li>
-    </ul>
-  </nz-sider>
+          <!-- Parent Menu (with children) -->
+          <div *ngIf="item.children">
+            <a (click)="toggleSubmenu(item)"
+              class="flex items-center justify-between p-3 text-blue-100 rounded-md hover:bg-blue-800/50 hover:text-white transition-all cursor-pointer group overflow-hidden select-none"
+              [title]="isCollapsed ? item.label : ''">
+              <div class="flex items-center">
+                <i [class]="item.icon + ' text-xl w-6 text-center group-hover:scale-110 transition-transform'"></i>
+                <span *ngIf="!isCollapsed"
+                  class="ml-3 font-bold text-[13px] uppercase tracking-wider text-blue-300 whitespace-nowrap">{{
+                  item.label }}</span>
+              </div>
+              <i *ngIf="!isCollapsed" class="pi text-sm transition-transform duration-300"
+                [ngClass]="item.expanded ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+            </a>
 
-  <nz-layout>
-    <nz-header class="header">
-      <div class="header-left">
-        <button
-          nz-button
-          nzType="text"
-          (click)="isCollapsed = !isCollapsed"
-          class="trigger">
-          <i nz-icon [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"></i>
+            <!-- Submenu Items -->
+            <ul *ngIf="item.expanded && !isCollapsed"
+              class="mt-1 space-y-1 overflow-hidden transition-all pl-3 relative">
+              <!-- Subtle line indicator for submenu -->
+              <div class="absolute left-[19px] top-2 bottom-2 w-px bg-blue-800/60 rounded-full"></div>
+
+              <li *ngFor="let child of item.children">
+                <a [routerLink]="child.link" routerLinkActive="text-white font-semibold bg-blue-900/40"
+                  class="flex items-center py-2.5 pr-3 pl-8 text-[14px] text-blue-200 rounded-md hover:bg-blue-800/40 hover:text-white transition-all relative group">
+                  <!-- Bullet indicator -->
+                  <div
+                    class="absolute left-[1.05rem] w-1.5 h-1.5 rounded-full bg-blue-700 group-hover:bg-blue-400 group-[.font-semibold]:bg-blue-400 transition-colors">
+                  </div>
+                  <span class="whitespace-nowrap">{{ child.label }}</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Footer Sidebar -->
+    <div class="p-4 border-t border-blue-800 bg-blue-950/30">
+      <button (click)="isCollapsed = !isCollapsed"
+        class="w-full flex items-center justify-center p-2 rounded-lg hover:bg-blue-800 transition-colors text-blue-300">
+        <i class="pi" [ngClass]="isCollapsed ? 'pi-chevron-right' : 'pi-chevron-left'"></i>
+        <span *ngIf="!isCollapsed" class="ml-2 text-xs uppercase tracking-widest font-bold">Recolher</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <div class="flex-grow flex flex-col min-w-0">
+
+    <!-- Header -->
+    <header
+      class="h-16 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 shadow-sm z-10 transition-colors duration-300">
+
+      <!-- Left Header -->
+      <div class="flex items-center min-w-0">
+        <nav class="flex text-sm text-slate-500 dark:text-slate-400 font-medium truncate">
+          <ol class="flex items-center list-none p-0 m-0">
+            <li *ngFor="let item of breadcrumbItems; let last = last" class="flex items-center">
+              <a *ngIf="item.link" [routerLink]="item.link"
+                class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                {{ item.label }}
+              </a>
+              <span *ngIf="!item.link" class="text-slate-900 dark:text-slate-200 font-semibold">
+                {{ item.label }}
+              </span>
+              <i *ngIf="!last" class="pi pi-chevron-right mx-2 text-[10px] text-slate-300 dark:text-slate-600"></i>
+            </li>
+          </ol>
+        </nav>
+      </div>
+
+      <!-- Right Header -->
+      <div class="flex items-center space-x-4">
+        <!-- User Dropdown Placeholder with Material implementation would go here -->
+        <div
+          class="flex items-center bg-gray-50 rounded-full pl-1 pr-3 py-1 border border-gray-100 hover:bg-gray-100 transition-colors cursor-pointer group">
+          <div
+            class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold shadow-inner">
+            {{ currentUser?.firstName?.charAt(0) || 'U' }}
+          </div>
+          <div class="ml-2 hidden sm:block">
+            <span class="text-sm font-semibold text-gray-700 block leading-tight">{{ currentUser?.firstName || 'Usuário'
+              }}</span>
+            <span class="text-[10px] text-gray-400 block uppercase tracking-tighter">{{
+              currentUser?.roles?.[0]?.replace('ROLE_', '') || 'Perfil' }}</span>
+          </div>
+          <i class="pi pi-angle-down ml-2 text-gray-400 group-hover:translate-y-0.5 transition-transform"></i>
+        </div>
+
+
+
+        <button (click)="toggleNotificationPanel()"
+          class="p-2 relative text-slate-400 hover:text-indigo-500 rounded-lg hover:bg-indigo-50 transition-all dark:hover:text-indigo-400 dark:hover:bg-slate-800"
+          title="Notificações">
+          <i class="pi pi-bell text-lg font-bold"></i>
+          <!-- Badge overlay for unread messages -->
+          <span
+            class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
         </button>
 
-        <nz-breadcrumb>
-          <nz-breadcrumb-item *ngFor="let item of breadcrumbItems">
-            <a [routerLink]="item.link" *ngIf="item.link; else noLink">
-              {{ item.label }}
-            </a>
-            <ng-template #noLink>
-              {{ item.label }}
-            </ng-template>
-          </nz-breadcrumb-item>
-        </nz-breadcrumb>
-      </div>
+        <button [matMenuTriggerFor]="settingsMenu"
+          class="p-2 text-slate-400 hover:text-indigo-500 rounded-lg hover:bg-indigo-50 transition-all dark:hover:text-indigo-400 dark:hover:bg-slate-800"
+          title="Central de Configurações">
+          <mat-icon class="!text-[22px] !w-[22px] !h-[22px]">apps</mat-icon>
+        </button>
 
-      <div class="header-right">
-        <!-- DROPDOWN CORRIGIDO conforme documentação -->
-        <a nz-dropdown [nzDropdownMenu]="userMenu">
-            <i nz-icon nzType="user"></i>
-            <span>{{ currentUser?.firstName || 'Usuário' }}</span>
-            <i nz-icon nzType="down"></i>
-        </a>
-        <nz-dropdown-menu #userMenu="nzDropdownMenu">
-          <ul nz-menu>
-            <li nz-menu-item>
-              <i nz-icon nzType="user"></i>
-              Meu Perfil
-            </li>
-            <li nz-menu-item>
-              <i nz-icon nzType="setting"></i>
-              Configurações
-            </li>
-            <li nz-menu-divider></li>
-            <li nz-menu-item (click)="logout()">
-              <i nz-icon nzType="logout"></i>
-              Sair
-            </li>
-          </ul>
-        </nz-dropdown-menu>
-      </div>
-    </nz-header>
+        <mat-menu #settingsMenu="matMenu"
+          class="!rounded-xl !mt-2 !shadow-xl !border !border-slate-100 dark:!bg-slate-800 dark:!border-slate-700 w-64">
+          <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50">
+            <h3 class="text-xs font-bold text-slate-600 uppercase tracking-widest">Configurações Base</h3>
+            <p class="text-[10px] text-slate-400 mt-1">Atalhos rápidos para módulos globais</p>
+          </div>
 
-    <nz-content class="content">
-      <div class="inner-content">
+          <button mat-menu-item routerLink="/configuracoes"
+            *ngIf="authService.hasAnyRole(['ROLE_ADMIN', 'ROLE_OPERATOR'])">
+            <mat-icon class="text-blue-500">settings</mat-icon>
+            <span class="text-slate-700 font-medium">Configurações Gerais</span>
+          </button>
+
+          <button mat-menu-item routerLink="/configuracoes/nfse"
+            *ngIf="authService.hasAnyRole(['ROLE_ADMIN', 'ROLE_OPERATOR'])">
+            <mat-icon class="text-indigo-500">receipt_long</mat-icon>
+            <span class="text-slate-700 font-medium">NFS-e (Serviços)</span>
+          </button>
+
+          <button mat-menu-item routerLink="/configuracoes/nfe"
+            *ngIf="authService.hasAnyRole(['ROLE_ADMIN', 'ROLE_OPERATOR'])">
+            <mat-icon class="text-emerald-500">local_mall</mat-icon>
+            <span class="text-slate-700 font-medium">NF-e (Mercadorias)</span>
+          </button>
+
+          <button mat-menu-item routerLink="/configuracoes/nfce"
+            *ngIf="authService.hasAnyRole(['ROLE_ADMIN', 'ROLE_OPERATOR'])">
+            <mat-icon class="text-purple-500">point_of_sale</mat-icon>
+            <span class="text-slate-700 font-medium">NFC-e (Consumidor)</span>
+          </button>
+
+          <div class="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+
+          <button mat-menu-item routerLink="/settings">
+            <mat-icon class="text-slate-400">person</mat-icon>
+            <span class="text-slate-700">Meu Perfil e Assinatura</span>
+          </button>
+
+          <button mat-menu-item routerLink="/users" *ngIf="authService.hasRole('ROLE_ADMIN')">
+            <mat-icon class="text-slate-400">group</mat-icon>
+            <span class="text-slate-700">Gerenciar Usuários</span>
+          </button>
+        </mat-menu>
+
+
+
+        <button (click)="logout()"
+          class="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all"
+          title="Sair do sistema">
+          <i class="pi pi-power-off text-lg font-bold"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main
+      class="flex-grow overflow-x-hidden overflow-y-auto bg-slate-50 dark:bg-slate-900 relative custom-scrollbar transition-colors duration-300">
+      <div class="container mx-auto p-0 min-h-full">
         <router-outlet></router-outlet>
       </div>
-    </nz-content>
-  </nz-layout>
-</nz-layout>
+    </main>
+
+  </div>
+
+  <!-- Notification Backdrop Overlay -->
+  <div *ngIf="isNotificationPanelOpen"
+    class="fixed inset-0 bg-slate-900/20 dark:bg-slate-950/40 backdrop-blur-sm z-40 transition-opacity"
+    (click)="toggleNotificationPanel()"></div>
+
+  <!-- Notification Drawer Panel -->
+  <div
+    class="fixed inset-y-0 right-0 w-80 sm:w-96 bg-white dark:bg-slate-800 shadow-2xl z-50 transform transition-transform duration-300 flex flex-col border-l border-slate-100 dark:border-slate-700"
+    [class.translate-x-full]="!isNotificationPanelOpen" [class.translate-x-0]="isNotificationPanelOpen">
+
+    <!-- Drawer Header -->
+    <div
+      class="h-16 flex items-center justify-between px-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
+      <div class="flex items-center gap-2">
+        <i class="pi pi-bell text-indigo-500"></i>
+        <h3 class="font-bold text-slate-800 dark:text-slate-100">Notificações</h3>
+        <span
+          class="ml-1 bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+          2 Novas
+        </span>
+      </div>
+      <button (click)="toggleNotificationPanel()"
+        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+
+    <!-- Drawer Actions -->
+    <div class="flex items-center justify-between px-6 py-3 border-b border-slate-50 dark:border-slate-700/50">
+      <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Recentes</span>
+      <button (click)="markAllAsRead()"
+        class="text-xs font-medium text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline">
+        Marcar todas como lidas
+      </button>
+    </div>
+
+    <!-- Drawer Body -->
+    <div class="flex-grow overflow-y-auto custom-scrollbar">
+      <div *ngIf="notifications.length === 0" class="flex flex-col items-center justify-center h-full p-6 text-center">
+        <div
+          class="w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4 text-slate-300 dark:text-slate-600">
+          <i class="pi pi-check-circle text-2xl"></i>
+        </div>
+        <p class="text-slate-600 dark:text-slate-400 font-medium">Você não tem novas notificações.</p>
+      </div>
+
+      <div *ngFor="let note of notifications"
+        class="p-4 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
+        [ngClass]="{'bg-blue-50/30 dark:bg-indigo-900/10': !note.read}">
+
+        <div class="flex gap-4">
+          <div class="mt-1 flex-shrink-0">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center" [ngClass]="{
+                'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400': note.type === 'warning',
+                'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400': note.type === 'success',
+                'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400': note.type === 'info'
+              }">
+              <i class="pi" [ngClass]="{
+                   'pi-exclamation-triangle': note.type === 'warning',
+                   'pi-check': note.type === 'success',
+                   'pi-info-circle': note.type === 'info'
+                 }"></i>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200"
+                [ngClass]="{'text-indigo-600 dark:text-indigo-400': !note.read}">
+                {{ note.title }}
+              </h4>
+              <span class="text-[10px] text-slate-400 font-medium whitespace-nowrap ml-2">{{ note.time }}</span>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{{ note.message }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drawer Footer -->
+    <div class="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+      <button mat-button
+        class="w-full text-indigo-600 dark:text-indigo-400 font-medium text-sm text-center py-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg">
+        Ver histórico completo
+      </button>
+    </div>
+  </div>
+
+</div>

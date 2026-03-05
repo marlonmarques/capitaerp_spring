@@ -1,0 +1,13 @@
+Campo	Valor Administrador	Valor Operador
+Empresa ID	capital (qualquer valor — campo ainda não validado no backend)	capital
+E-mail	admin@capital.com	maria@capital.com
+Senha	123456	123456
+Role	ROLE_ADMIN + ROLE_OPERATOR	ROLE_OPERATOR
+
+
+api key
+sk-user-dPqI1kO-C0Bo0mZ7LFcZPT5mlRkFp4Z3cR28KGuFPd8hF-AjKqmr6UYYl7rCLeqp_7ojhGN9EzU6e4--kM4Auee4ZfnfPVLwujOdWnnRDv7MBqdkI78L2nK2eskCjpUQMU0
+
+comando
+Hey, help me to test this project with TestSprite.
+

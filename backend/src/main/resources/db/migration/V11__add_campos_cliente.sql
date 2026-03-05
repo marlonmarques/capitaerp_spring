@@ -1,0 +1,4 @@
+ALTER TABLE tb_cliente
+ADD COLUMN rg VARCHAR(50),
+ADD COLUMN reter_iss BOOLEAN DEFAULT false,
+ADD COLUMN nota_interna TEXT;

@@ -18,11 +18,7 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Profile("!prod")
-@EnableJpaRepositories(
-        basePackages = "com.erp.capitalerp.repositories",
-        entityManagerFactoryRef = "h2EntityManager",
-        transactionManagerRef = "h2TransactionManager"
-)
+@EnableJpaRepositories(basePackages = "com.erp.capitalerp.infrastructure.persistence", entityManagerFactoryRef = "h2EntityManager", transactionManagerRef = "h2TransactionManager")
 @Configuration
 public class H2Config {
 
@@ -40,16 +36,28 @@ public class H2Config {
     }
 
     @Bean
+    @Primary
     public LocalContainerEntityManagerFactoryBean h2EntityManager() {
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
         em.setDataSource(h2DataSourceBean());
-        //em.setDataSource(h2DataSource().initializeDataSourceBuilder().build());
-        em.setPackagesToScan("com.erp.capitalerp.entities");
+        // em.setDataSource(h2DataSource().initializeDataSourceBuilder().build());
+        em.setPackagesToScan("com.erp.capitalerp.domain");
 
         HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         vendorAdapter.setGenerateDdl(true);
         vendorAdapter.setShowSql(true);
         em.setJpaVendorAdapter(vendorAdapter);
+
+        java.util.Map<String, Object> properties = new java.util.HashMap<>();
+        properties.put("hibernate.dialect", "org.hibernate.dialect.H2Dialect");
+        // Converte camelCase (Java) para snake_case (SQL) — ex: razaoSocial →
+        // razao_social
+        // Necessário pois o LocalContainerEntityManagerFactoryBean manual não herda o
+        // SpringPhysicalNamingStrategy automaticamente configurado pelo Spring Boot
+        properties.put("hibernate.physical_naming_strategy",
+                "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy");
+        properties.put("hibernate.hbm2ddl.auto", "create");
+        em.setJpaPropertyMap(properties);
 
         return em;
     }
@@ -63,13 +71,13 @@ public class H2Config {
         return transactionManager;
     }
 
-    @Primary
-    @Bean
-    public ApplicationRunner h2DataInitializer(DataSource h2DataSourceBean) {
-        return args -> {
-            ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
-            populator.addScript(new ClassPathResource("import.sql"));
-            populator.execute(h2DataSourceBean);
-        };
-    }
+    // @Primary
+    // @Bean
+    // public ApplicationRunner h2DataInitializer(DataSource h2DataSourceBean) {
+    // return args -> {
+    // ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
+    // populator.addScript(new ClassPathResource("import.sql"));
+    // populator.execute(h2DataSourceBean);
+    // };
+    // }
 }

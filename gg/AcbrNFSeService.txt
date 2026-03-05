@@ -1,0 +1,666 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\InvoiceEletronic;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Exception;
+use App\Traits\ParseAcbrResponse;
+use Illuminate\Support\Facades\DB;
+use App\Events\InvoiceAuthorized;
+
+class AcbrNFSeService
+{
+    use ParseAcbrResponse;
+
+    protected $apiUrl;
+    protected $iniGenerator;
+
+    public function __construct(NfseIniGeneratorService $iniGenerator)
+    {
+        $this->apiUrl = config('services.acbr_nfse.url', 'http://localhost:8050');
+        $this->iniGenerator = $iniGenerator;
+    }
+
+    /**
+     * 1. EMITIR NFS-e
+     */
+    public function emitir(InvoiceEletronic $nota)
+    {
+        try {
+            $iniContent = $this->iniGenerator->gerarIni($nota);
+            $configs = $this->getConfigs($nota->empresa);
+
+            Log::info("Enviando NFSe ID {$nota->id} para ACBr...");
+
+            $response = $this->safePost("nfse/emitir", [
+                    'arquivo_ini' => $iniContent,
+                    'numero_rps'  => $nota->numero_nfse ?? $nota->numero,
+                    'imprimir'    => false,
+                    'configs'     => $configs
+                ], $nota, 'Emissão');
+
+            Log::debug("Status HTTP: " . $response->status());
+
+            $json = $response->json();
+            $rawContent = $json['mensagem'] ?? ($json['detalhes'] ?? '');
+
+            // Lógica de Recuperação de Duplicidade
+            if ($this->respostaIndicaDuplicidade($rawContent)) {
+                Log::warning("NFSe {$nota->id}: RPS já processado. Tentando recuperar XML via Consulta...");
+
+                // Se deu duplicidade, o RPS já existe na prefeitura.
+                // Vamos consultar por RPS para baixar o XML e "salvar" a situação.
+                $resultadoConsulta = $this->consultar($nota);
+
+                // Verifica se a consulta resolveu
+                $nota->refresh();
+                if ($nota->invoice_status === 'concluida') {
+                    Log::info("NFSe {$nota->id}: Recuperada com sucesso após erro de duplicidade.");
+                    return ['success' => true, 'message' => 'Nota recuperada (já constava na prefeitura)'];
+                }
+
+                // Se mesmo consultando não achou, aí sim é erro
+                throw new Exception("Erro: RPS duplicado, mas não foi possível recuperar a nota via consulta.");
+            }
+
+            // Tenta pegar o XML limpo vindo da nossa nova lógica do CLI
+            $xmlOriginal = $json['xml_distribuicao'] ?? null;
+
+            // Fallback: Se não veio no campo novo, tenta extrair do texto
+            if (empty($xmlOriginal)) {
+                $xmlOriginal = $this->extrairXmlDaResposta($rawContent);
+            }
+
+            // Processa o retorno textual (INI)
+            $retorno = $this->tratarRespostaApi($response, $nota, 'Emissão');
+
+            // --- LÓGICA DE SUCESSO ---
+            $dadosCheck = isset($retorno['dados']) ? $retorno['dados'] : $retorno;
+
+            $protocolo = $dadosCheck['Envio']['Protocolo']
+                      ?? $dadosCheck['Protocolo']
+                      ?? $dadosCheck['Retorno']['Protocolo']
+                      ?? null;
+
+            $numeroNota = $this->extrairValorXml($retorno, ['Numero', 'NumeroNfse', 'NumeroNFSe']);
+
+
+            // CASO 1: A API retornou um Número de Nota (Sucesso Síncrono)
+            if ($numeroNota) {
+                // Se o XML veio vazio, tentamos uma consulta rápida
+                if (empty($xmlOriginal) || strlen($xmlOriginal) < 50) {
+                    Log::info("Nota {$numeroNota} gerada, mas sem XML imediato. Tentando recuperar...");
+
+                    // Pequeno delay para garantir gravação em disco se for o caso
+                    usleep(500000); // 0.5s
+
+                    // Tenta consultar
+                    $resultadoConsulta = $this->consultar($nota);
+
+                    // Verifica se a consulta salvou o XML
+                    $nota->refresh();
+                    if ($nota->invoice_status === 'concluida' && !empty($nota->nfe_processada)) {
+                        return $retorno; // Sucesso recuperado via consulta
+                    }
+
+                    Log::warning("Consulta imediata falhou em recuperar o XML. Agendando Job.");
+                    \App\Jobs\ConsultarLoteJob::dispatch($nota->id)->delay(now()->addSeconds(10))->onConnection('database')->onQueue('tenant-default');
+
+                    return $retorno;
+                }
+
+                $codVerif = $this->extrairValorXml($retorno, ['CodigoVerificacao']) ?? '';
+                $this->atualizarNotaConcluida($nota, $numeroNota, $codVerif, now(), "Emissão Síncrona", $xmlOriginal);
+            }
+            // CASO 2: Protocolo (Assíncrono)
+            elseif ($protocolo) {
+                $nota->update([
+                    'state' => 'send',
+                    'invoice_status' => 'processando',
+                    'protocolo_nfe' => $protocolo,
+                    'mensagem_retorno' => 'Lote enviado. Protocolo: ' . $protocolo
+                ]);
+                \App\Jobs\ConsultarLoteJob::dispatch($nota->id)->delay(now()->addSeconds(3))->onConnection('database')->onQueue('tenant-default');
+            }
+            // CASO 3: Indefinido
+            else {
+                \App\Jobs\ConsultarLoteJob::dispatch($nota->id)->delay(now()->addSeconds(5))->onConnection('database')->onQueue('tenant-default');
+            }
+
+            return $retorno;
+
+        } catch (Exception $e) {
+                if ($this->isErroInfraestrutura($e)) {
+                    // MANUTENÇÃO DA SINCRONIA:
+                    // Mantemos 'processando' para o Dashboard não ficar vermelho
+                    // e o Job poder tentar novamente.
+                    $nota->update([
+                        'invoice_status' => 'processando',
+                        'mensagem_retorno' => 'Aguardando estabilidade: ' . substr($e->getMessage(), 0, 100)
+                    ]);
+                } else {
+                    // Só cai aqui se for erro de dado (rejeição) ou fatal
+                    $this->tratarErroFatal($nota, $e);
+                }
+            throw $e; // Relança para o Job saber que falhou
+        }
+    }
+
+    /**
+     * CONSULTA BLINDADA (Estratégia de Fallback)
+     */
+    public function consultar(InvoiceEletronic $nota)
+    {
+        $numero = $nota->numero_nfse ?? $nota->numero;
+        $resultado = [];
+
+        // TENTATIVA 1: Por Número
+        if (!empty($numero) && is_numeric($numero)) {
+            try {
+                $response = $this->safePost("nfse/consultar-numero", [
+                    'numero'  => (string)$numero,
+                    'configs' => $this->getConfigs($nota->empresa, true)
+                ], $nota, 'Consulta Numero');
+
+                $resultado = $this->processarRespostaConsulta($response, $nota, 'Consulta Numero', true);
+                if ($this->notaFoiEncontrada($resultado)) return $resultado;
+            } catch (\Exception $e) {
+                Log::info("Falha de rede na Consulta por Número, tentando RPS...");
+            }
+        }
+
+        // TENTATIVA 2: Por RPS
+        try {
+            $response = $this->safePost("nfse/consultar-rps", [
+                'numero'  => (string)$nota->numero,
+                'serie'   => (string)($nota->serie ?? '1'),
+                'tipo'    => (string)('1'),
+                'configs' => $this->getConfigs($nota->empresa, true)
+            ], $nota, 'Consulta RPS');
+
+            $resultado = $this->processarRespostaConsulta($response, $nota, 'Consulta RPS', true);
+            if ($this->notaFoiEncontrada($resultado)) return $resultado;
+        } catch (\Exception $e) {
+            Log::info("Falha de rede na Consulta por RPS...");
+        }
+
+        // TENTATIVA 3: Por Protocolo/Lote
+        if (!empty($nota->protocolo_nfe)) {
+            return $this->consultarLote($nota);
+        }
+
+        return $resultado;
+    }
+
+    public function consultarLote(InvoiceEletronic $nota)
+    {
+        $response = Http::withHeaders($this->getHeaders($nota->empresa))
+            ->post("{$this->apiUrl}/nfse/consultar-lote", [
+                'protocolo' => $nota->protocolo_nfe,
+                'lote'      => (string)$nota->id,
+                'configs'   => $this->getConfigs($nota->empresa)
+            ]);
+        return $this->processarRespostaConsulta($response, $nota, 'Consulta Lote');
+    }
+
+    /**
+     * CANCELAMENTO DE NFS-e
+     */
+    public function cancelar(InvoiceEletronic $nota, string $motivo, string $codigo = '1')
+    {
+        Log::info("Iniciando cancelamento NFSe {$nota->numero_nfse} (ID {$nota->id})...");
+
+        // Garantia de que o número não é nulo
+        $numeroNota = (string) ($nota->numero_nfse ?? $nota->numero);
+
+        if (empty($numeroNota) || $numeroNota === "0") {
+            throw new Exception("Impossível cancelar: Nota não possui Número NFS-e gerado.");
+        }
+
+        try {
+            $configs = $this->getConfigs($nota->empresa);
+            $motivoLimpo = $this->limparString($motivo);
+
+            $response = $this->safePost("nfse/cancelar", [
+                    'numero_nfse'         => $numeroNota,
+                    'codigo_cancelamento' => (string) $codigo,
+                    'motivo'              => $motivoLimpo,
+                    'serie'               => (string) ($nota->serie ?? '1'),
+                    'configs'             => $configs,
+                ], $nota, 'Cancelamento');
+
+            Log::debug("Cancelamento HTTP Status: " . $response->status());
+
+            if ($response->status() === 422) {
+                // Se falhar 422, logamos o corpo para ver o erro de validação exato
+                Log::error("Erro de Validação 422 na API: " . $response->body());
+                throw new Exception("Falha de validação nos dados de cancelamento.");
+            }
+
+            $retorno = $this->tratarRespostaApi($response, $nota, 'Cancelamento');
+
+            $nota->update([
+                'invoice_status'    => 'canc',
+                'state'             => 'canceled',
+                'mensagem_retorno'  => "Cancelamento Homologado: $motivo",
+                'data_cancelamento' => now()
+            ]);
+
+            return $retorno;
+
+        } catch (Exception $e) {
+            // ✅ O Catch aqui é essencial para a blindagem visual
+            if ($this->isErroInfraestrutura($e)) {
+                Log::warning("NFSe {$nota->id}: Instabilidade na Prefeitura (Timeout) no Cancelamento.");
+
+                $nota->update([
+                    'invoice_status' => 'processando',
+                    'mensagem_retorno' => 'Prefeitura instável. O cancelamento será reprocessado automaticamente.'
+                ]);
+            } elseif (str_contains($e->getMessage(), 'E206')) {
+                Log::warning("NFSe {$nota->id}: Código de cancelamento rejeitado pela prefeitura.");
+
+                $nota->update([
+                    'invoice_status' => 'concluida', // Volta para concluída para permitir nova tentativa
+                    'state' => 'authorized',
+                    'mensagem_retorno' => 'Erro E206: A prefeitura não aceitou o motivo "Erro na Emissão". Tente "Serviço não prestado".'
+                ]);
+            } else {
+                $this->tratarErroFatal($nota, $e);
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Executa chamadas HTTP para a API ACBr com tratamento de instabilidade
+     */
+    private function safePost(string $endpoint, array $payload, InvoiceEletronic $nota, string $operacao)
+    {
+        try {
+            // Usamos o timeout maior que configuramos no CLI
+            $response = Http::withHeaders($this->getHeaders($nota->empresa))
+                ->timeout(90)
+                ->post("{$this->apiUrl}/{$endpoint}", $payload);
+
+            if ($response->failed()) {
+                // Se falhou mas o corpo tem mensagem (ex: erro 422 ou erro da prefeitura no INI)
+                // retornamos para o parse tratar como erro de negócio
+                return $response;
+            }
+
+            return $response;
+
+        } catch (\Exception $e) {
+            if ($this->isErroInfraestrutura($e)) {
+                Log::warning("NFSe {$nota->id}: Falha de conexão em {$operacao}. Prefeitura instável.");
+
+                // Aqui está a blindagem: em vez de estourar o erro,
+                // simulamos uma resposta de erro técnico para o fluxo continuar ou o Job reagendar
+                $nota->update([
+                    'mensagem_retorno' => 'Aguardando estabilidade do servidor municipal...'
+                ]);
+
+                throw $e; // Relançamos apenas para o Job saber que deve tentar novamente o fluxo todo
+            }
+            throw $e;
+        }
+    }
+
+    // --- CONFIGURAÇÕES ---
+
+    private function getConfigs($empresa, $consulta = false)
+    {
+        $docFolder = $this->limparNum($empresa->cpf ?? $empresa->cnpj);
+        $dockerBase = "/var/www/html/storage/app/empresas/{$docFolder}";
+        $dockerPathSalvar = "{$dockerBase}/nfse_files";
+        $ano = date('Y');
+        $mes = date('m');
+        $dockerPathMensal = "{$dockerPathSalvar}/{$docFolder}/{$ano}/{$mes}";
+        $pathSchemas = "/var/www/html/schemas/NFSe";
+
+        $layout = in_array($empresa->reg_fiscal, ['4']) ? '1' : '0';
+
+        return [
+            'Principal' => [
+                'TipoResposta' => '0',
+                'CodificacaoResposta' => '0',
+                'LogNivel' => '4',
+                'LogPath' => "{$dockerBase}/logs",
+            ],
+            'NFSe' => [
+                'CodigoMunicipio' => $this->limparNum($empresa->cidade),
+                'LayoutNFSe'      => $layout,
+                'Timeout'         => '60000',
+                'Ambiente'        => ($empresa->anbne == 1) ? '0' : '1',
+                'SSLType'         => '5',
+                'PathSalvar'      => $dockerPathSalvar,
+                'PathNFSe'        => $dockerPathMensal,
+                'PathSchemas'     => $pathSchemas,
+                'SalvarArq'       => '1',
+                'SalvarWS'        => '1',
+                'Prestador.Logo'  => "{$dockerBase}/certs/logo.png",
+            ],
+            'Prestador' => [
+                'CNPJ' => $docFolder,
+                'InscricaoMunicipal' => $this->limparNum($empresa->inscmun),
+                'RazaoSocial' => $empresa->razao,
+            ],
+            'Emissor' => [
+                'CNPJ' => $docFolder,
+                'RazaoSocial' => $empresa->razao
+            ],
+            'DFe' => [
+                'ArquivoPFX'    => "{$dockerBase}/certs/certificado.pfx",
+                'Senha'         => $empresa->senha_certificado ?? $empresa->cert_senha, // AQUI ESTÁ A SENHA!
+                'UF'            => app(\App\Helpers\functions::class)->estados($empresa->uf),
+                'SSLCryptLib'   => '1',
+                'SSLHttpLib'    => '3',
+                'SSLXmlSignLib' => '4',
+            ],
+            'SoftwareHouse' => [
+                'CNPJ'        => '05311194000160',
+                'RazaoSocial' => 'Virtual Comutadores e Dig ltda ME',
+                'Telefone'    => '61982007658',
+                'Email'       => 'marlonmarques6@gmail.com',
+            ]
+        ];
+    }
+
+    private function getHeaders($empresa)
+    {
+        return [
+            'empresa-id' => $this->limparNum($empresa->cpf ?? $empresa->cnpj),
+            'Accept' => 'application/json'
+        ];
+    }
+
+    // --- PROCESSAMENTO UNIFICADO ---
+    private function processarRespostaConsulta($response, $nota, $origem, $silentMode = false)
+    {
+        $json = $response->json();
+        $rawContent = $json['mensagem'] ?? ($json['detalhes'] ?? '');
+
+        // [ATUALIZADO] Prioridade absoluta para o xml_distribuicao vindo do CLI
+        $xmlConteudo = $json['xml_distribuicao'] ?? $json['xml_conteudo'] ?? null;
+
+        // Fallback: Tenta extrair da string bruta se não veio no campo dedicado
+        if (empty($xmlConteudo)) {
+            $xmlConteudo = $this->extrairXmlDaResposta($rawContent);
+        }
+
+        try {
+            $dadosIni = $this->tratarRespostaApi($response, $nota, $origem, $silentMode);
+        } catch (Exception $e) {
+            return ['Erro' => $e->getMessage()];
+        }
+
+        // Se estiver em modo silencioso (tentativa) e deu erro de "não encontrado", retorna sem salvar
+        if ($silentMode && $this->verificarErroNaoEncontrado($dadosIni)) {
+            return $dadosIni;
+        }
+
+        $this->processarRetornoConsulta($nota, $dadosIni, $xmlConteudo);
+        return $dadosIni;
+    }
+
+    private function processarRetornoConsulta($nota, $dadosIni, $xmlExterno = null)
+    {
+        if (isset($dadosIni['dados'])) $dadosIni = array_merge($dadosIni, $dadosIni['dados']);
+
+        // 1. Prioridade: XML que veio de fora (CLI memory/disk)
+        $xmlParaSalvar = $xmlExterno;
+
+        // 2. Se não veio, tenta Arquivo Local (caminho retornado no INI)
+        if (empty($xmlParaSalvar) && isset($dadosIni['Arquivo1']['CaminhoCompleto']) && file_exists($dadosIni['Arquivo1']['CaminhoCompleto'])) {
+            $xmlParaSalvar = file_get_contents($dadosIni['Arquivo1']['CaminhoCompleto']);
+        }
+
+        // 3. Fallback: Campos internos do array
+        if (empty($xmlParaSalvar)) {
+             if (isset($dadosIni['__XmlOriginal'])) $xmlParaSalvar = $dadosIni['__XmlOriginal'];
+             elseif (isset($dadosIni['XmlRetorno'])) $xmlParaSalvar = $dadosIni['XmlRetorno'];
+        }
+
+        $numero = $this->extrairValorXml($dadosIni, ['Numero', 'NumeroNfse', 'NumeroNFSe']);
+        $codVerificacao = $this->extrairValorXml($dadosIni, ['CodigoVerificacao']);
+        $dataEmissao = $this->extrairValorXml($dadosIni, ['DataEmissao']);
+
+        if ($numero) {
+            // Só salva se tiver número. O XML é opcional no update, mas crucial para o negócio.
+            $this->atualizarNotaConcluida($nota, $numero, $codVerificacao, $dataEmissao ?? now(), "XML Resposta", $xmlParaSalvar);
+            return;
+        }
+
+        Log::warning("Consulta {$nota->id}: Dados insuficientes para conclusão.", [
+            'conteudo_completo' => $dadosIni
+        ]);
+    }
+
+    private function tratarRespostaApi($response, $nota, $operacao, $silentMode = false)
+    {
+        $json = $response->json();
+
+        if (isset($json['error']) && $json['error']) {
+            $erroMsg = $json['mensagem'] ?? 'Erro desconhecido no Microserviço';
+            if ($silentMode) {
+                Log::warning("ACBr Microserviço Fail ($operacao): $erroMsg");
+                return ['ErroSistema' => $erroMsg];
+            }
+            throw new Exception("Falha Microserviço: $erroMsg");
+        }
+
+        $rawContent = $json['mensagem'] ?? ($json['detalhes'] ?? '');
+
+        if ($response->failed() && empty($rawContent)) throw new Exception("Falha HTTP {$response->status()}");
+
+        $dadosIni = $this->parseIniManual($rawContent);
+        if (empty($dadosIni) && isset($json['dados'])) $dadosIni = $json;
+        elseif (empty($dadosIni) && !empty($json)) $dadosIni = $json;
+
+        $searchScope = isset($dadosIni['dados']) ? $dadosIni['dados'] : $dadosIni;
+
+        foreach (['XmlRetorno', 'XmlEnvio', 'Xml', 'CompNfse'] as $xmlKey) {
+            if (isset($searchScope[$xmlKey])) {
+                $xmlString = $searchScope[$xmlKey];
+                if (is_string($xmlString) && (str_starts_with(trim($xmlString), '<'))) {
+                    $xmlArray = $this->xmlToArray($xmlString);
+                    $dadosIni = array_merge($dadosIni, $xmlArray);
+                    $dadosIni['__XmlOriginal'] = $xmlString;
+                }
+            }
+            foreach ($searchScope as $chave => $valor) {
+                if (is_array($valor) && isset($valor[$xmlKey])) {
+                     $xmlString = $valor[$xmlKey];
+                     if (is_string($xmlString) && (str_starts_with(trim($xmlString), '<'))) {
+                        $xmlArray = $this->xmlToArray($xmlString);
+                        $dadosIni = array_merge($dadosIni, $xmlArray);
+                        $dadosIni['__XmlOriginal'] = $xmlString;
+                     }
+                }
+            }
+        }
+
+        $erros = [];
+        array_walk_recursive($dadosIni, function($item, $key) use (&$erros) {
+            if ($key === 'MensagemRetorno' || $key === 'Mensagem') {
+                $lista = isset($item['Codigo']) ? [$item] : $item;
+                if (is_array($lista)) foreach ($lista as $m) $erros[] = $this->fmtErro($m);
+            }
+        });
+
+        foreach ($dadosIni as $secao => $valores) {
+            if (str_starts_with($secao, 'Erro') || str_starts_with($secao, 'Alert')) $erros[] = $this->fmtErro($valores);
+        }
+
+        if (!empty($erros)) {
+            // --- LIMPEZA DE ERROS (Filtra o X202 se houver erros reais) ---
+            $errosLimpos = [];
+            foreach ($erros as $erro) {
+                // Se tiver X202 mas tiver outros erros, ignora o X202
+                if (str_contains($erro, 'X202') && count($erros) > 1) continue;
+                $errosLimpos[] = $erro;
+            }
+
+            $msgErro = implode(" | ", array_unique($errosLimpos));
+
+            if ($this->isErroInfraestrutura(new Exception($msgErro))) {
+                Log::warning("NFSe {$nota->id}: Instabilidade detectada na resposta da prefeitura ($operacao).");
+                throw new Exception($msgErro);
+            }
+
+            if ($silentMode) {
+                Log::warning("ACBr Erro Silencioso ($operacao): " . strip_tags($msgErro));
+                return $dadosIni;
+            }
+
+            Log::warning("ACBr Erros ($operacao): " . strip_tags($msgErro));
+
+            if (stripos($msgErro, 'Alerta') === false) {
+                $nota->update([
+                    'state' => 'error',
+                    'invoice_status' => 'rejeitada',
+                    // Proteção extra para garantir que o texto cabe no banco
+                    'mensagem_retorno' => mb_substr($msgErro, 0, 1500)
+                ]);
+                throw new Exception($msgErro); // Joga o erro limpo para a interface
+            }
+        }
+        return $dadosIni;
+    }
+
+    private function atualizarNotaConcluida($nota, $numero, $cod, $data, $origem, $xmlString = null)
+    {
+        $dadosUpdate = [
+            'invoice_status' => 'concluida',
+            'state' => 'authorized',
+            'numero_nfse' => $numero,
+            'verify_code' => $cod,
+            'data_autorizacao' => $data ? \Carbon\Carbon::parse($data) : now(),
+            'mensagem_retorno' => "Autorizada ($origem)",
+        ];
+
+        if ($xmlString && (stripos($xmlString, '<NFSe') !== false || stripos($xmlString, '<ComplNfse') !== false)) {
+            $xmlLimpo = trim($xmlString);
+
+            // PostgreSQL exige formato Hex para bytea
+            // DB::raw é fundamental aqui
+            $dadosUpdate['nfe_processada'] = DB::raw("'\\x" . bin2hex($xmlLimpo) . "'");
+
+            // Atualiza o model em memória também para evitar re-loads imediatos
+            $nota->nfe_processada = $xmlLimpo;
+        }
+
+        $nota->update($dadosUpdate);
+
+        InvoiceAuthorized::dispatch($nota);
+        Log::info("Nota $numero Autorizada e Salva ($origem)");
+    }
+
+    private function extrairXmlDaResposta($iniContent) {
+        if (empty($iniContent)) return null;
+        $patterns = ['/XmlRetorno\s*=\s*(<\?xml.*?<\/.*?>)/s', '/Xml\s*=\s*(<\?xml.*?<\/.*?>)/s', '/CompNfse\s*=\s*(<.*?<\/CompNfse>)/s'];
+        foreach ($patterns as $pattern) { if (preg_match($pattern, $iniContent, $matches)) return $matches[1]; }
+        if (preg_match('/(<\?xml.*?<\/\w+>)/s', $iniContent, $matches)) return $matches[1];
+        return null;
+    }
+    private function parseIniManual($content) {
+        $data = []; $currentSection = 'Geral'; $lines = preg_split('/\r\n|\r|\n/', $content);
+        foreach ($lines as $line) {
+            $line = trim($line); if (empty($line) || $line[0] == ';') continue;
+            if ($line[0] == '[' && substr($line, -1) == ']') { $currentSection = substr($line, 1, -1); continue; }
+            $parts = explode('=', $line, 2);
+            if (count($parts) == 2) {
+                $key = trim($parts[0]); $value = trim($parts[1]);
+                if (!isset($data[$currentSection])) $data[$currentSection] = [];
+                $data[$currentSection][$key] = $value;
+            }
+        }
+        return $data;
+    }
+    private function xmlToArray($xmlString) { try { return json_decode(json_encode(simplexml_load_string(trim($xmlString), "SimpleXMLElement", LIBXML_NOCDATA)), true); } catch (Exception $e) { return []; } }
+    private function extrairValorXml($array, $keysBusca) {
+        if (!is_array($array)) return null;
+        foreach ($array as $key => $value) {
+            if (in_array($key, $keysBusca) && !empty($value) && !is_array($value)) return $value;
+            if (is_array($value)) { $res = $this->extrairValorXml($value, $keysBusca); if ($res) return $res; }
+        }
+        return null;
+    }
+    private function fmtErro($data)
+    {
+        $cod = $data['Codigo'] ?? '';
+        $msg = $data['Mensagem'] ?? $data['Descricao'] ?? '';
+        $correcao = $data['Correcao'] ?? '';
+
+        $erro = "$cod: $msg";
+        // Adiciona a dica de correção se a prefeitura enviar
+        if (!empty($correcao)) {
+            $erro .= " (Dica: $correcao)";
+        }
+
+        return trim($erro, " :");
+    }
+    private function tratarErroFatal($nota, Exception $e) {
+        Log::error("ACBr Fatal ID {$nota->id}: " . $e->getMessage());
+        $nota->update([
+            'state' => 'error',
+            'invoice_status' => 'rejeitada',
+            // Corta em 1500 caracteres para não dar erro de Truncation no banco
+            'mensagem_retorno' => mb_substr($e->getMessage(), 0, 1500)
+        ]);
+        throw $e;
+    }
+    private function limparNum($str) { return preg_replace('/[^0-9]/', '', $str); }
+    private function limparString($str) { return preg_replace('/[^A-Za-z0-9\s]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $str)); }
+    private function verificarErroNaoEncontrado($dadosIni) {
+        $json = json_encode($dadosIni);
+        return str_contains($json, 'E212') || str_contains($json, 'X202') || str_contains($json, 'NFS-e não encontrada');
+    }
+    private function notaFoiEncontrada($dadosIni) {
+        $num = $this->extrairValorXml($dadosIni, ['Numero', 'NumeroNfse']);
+        return !empty($num) && !$this->verificarErroNaoEncontrado($dadosIni);
+    }
+
+    /**
+     * Verifica indícios de duplicidade na resposta crua da prefeitura
+     */
+    private function respostaIndicaDuplicidade($content)
+    {
+        if (empty($content)) return false;
+
+        $termos = [
+            'rps ja processado', 'rps já processado',
+            'rps ja informado', 'rps já informado',
+            'lote ja processado', 'lote já processado',
+            'duplicidade de rps', 'numero do rps ja utilizado',
+            'e156' // E156 costuma ser duplicidade em vários provedores
+        ]; // REMOVIDO O X202 e E10 daqui!
+
+        $contentNorm = $this->limparString(strtolower($content));
+        foreach ($termos as $termo) {
+            $termoNorm = $this->limparString(strtolower($termo));
+            if (str_contains($contentNorm, $termoNorm)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Verifica se o erro é de infraestrutura/instabilidade do governo
+     */
+    private function isErroInfraestrutura(\Throwable $e): bool
+    {
+        $mensagens = [
+            'timed out', 'cURL error 28', 'X999', '110',
+            'Connection refused', 'Erro de Conexão', 's:Client - Error'
+        ];
+        foreach ($mensagens as $msg) {
+            if (str_contains(strtolower($e->getMessage()), strtolower($msg))) return true;
+        }
+        return false;
+    }
+}

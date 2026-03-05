@@ -1,1 +1,209 @@
-/* You can add global styles to this file, and also import other style files */
+/* Google Fonts — DM Sans */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,700&display=swap');
+
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* PrimeIcons */
+@import "primeicons/primeicons.css";
+
+/* Angular Material theme (para componentes como snackbar, dialog, etc.) */
+@import "@angular/material/prebuilt-themes/azure-blue.css";
+
+/* ====================== */
+/* Design System Tokens   */
+/* ====================== */
+:root {
+  --color-primary: #2563eb;
+  --color-primary-h: #1d4ed8;
+  --color-surface: #fff;
+  --color-bg: #f8fafc;
+  --radius: 12px;
+  --font: 'DM Sans', 'Inter', system-ui, sans-serif;
+}
+
+/* ====================== */
+/* Global Resets          */
+/* ====================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--color-bg);
+  font-family: var(--font);
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ====================== */
+/* Angular Material Fixes */
+/* ====================== */
+.mat-mdc-form-field {
+  width: 100%;
+  --mat-form-field-container-text-size: 15px;
+}
+
+.mat-mdc-snack-bar-container {
+  border-radius: 12px !important;
+  font-family: var(--font) !important;
+  font-weight: 600 !important;
+
+  &.toast-success {
+    --mdc-snackbar-container-color: #065f46;
+    --mdc-snackbar-supporting-text-color: #fff;
+    border-left: 4px solid #10b981;
+  }
+
+  &.toast-error {
+    --mdc-snackbar-container-color: #7f1d1d;
+    --mdc-snackbar-supporting-text-color: #fff;
+    border-left: 4px solid #f87171;
+  }
+
+  &.toast-warning {
+    --mdc-snackbar-container-color: #78350f;
+    --mdc-snackbar-supporting-text-color: #fff;
+    border-left: 4px solid #fbbf24;
+  }
+
+  &.toast-info {
+    --mdc-snackbar-container-color: #1e3a8a;
+    --mdc-snackbar-supporting-text-color: #fff;
+    border-left: 4px solid #60a5fa;
+  }
+}
+
+/* ====================== */
+/* Scrollbar Customizada  */
+/* ====================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* PrimeNG v18 handles themes automatically via Aura config */
+
+/* ====================== */
+/* Data-Dense ERP Forms   */
+/* ====================== */
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.3rem;
+}
+
+.field-hint {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  margin-left: 0.4rem;
+}
+
+.field-error {
+  font-size: 0.72rem;
+  color: #ef4444;
+  margin-top: 0.2rem;
+}
+
+.field-input, p-inputmask.field-input > input {
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.875rem;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  height: auto;
+}
+
+.field-input:focus, p-inputmask.field-input > input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+}
+
+.field-input:disabled, p-inputmask.field-input > input:disabled {
+  background-color: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.field-input-sm {
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field-input-sm:focus {
+  border-color: #6366f1;
+}
+
+.field-currency-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.field-currency-wrapper:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+}
+
+.field-currency-prefix, .field-currency-suffix {
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 600;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.field-currency-suffix {
+  border-right: none;
+  border-left: 1px solid #e2e8f0;
+}
+
+.field-input-currency {
+  flex: 1;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  outline: none;
+  background: transparent;
+  border: none;
+  min-width: 0;
+}

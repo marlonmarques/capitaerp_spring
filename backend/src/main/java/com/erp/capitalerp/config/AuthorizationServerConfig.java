@@ -5,8 +5,11 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+
+import com.erp.capitalerp.infrastructure.persistence.cadastros.EmpresaRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,6 +46,9 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Acce
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.erp.capitalerp.config.customgrant.CustomPasswordAuthenticationConverter;
 import com.erp.capitalerp.config.customgrant.CustomPasswordAuthenticationProvider;
@@ -70,22 +76,47 @@ public class AuthorizationServerConfig {
 	@Autowired
 	private UserDetailsService userDetailsService;
 
+	@Autowired
+	private EmpresaRepository empresaRepository;
+
+	@Value("${cors.origins}")
+	private String corsOrigins;
+
 	@Bean
 	@Order(2)
 	public SecurityFilterChain asSecurityFilterChain(HttpSecurity http) throws Exception {
 
-		http.securityMatcher("/oauth2/**", "/.well-known/**").with(OAuth2AuthorizationServerConfigurer.authorizationServer(), Customizer.withDefaults());
+		http.securityMatcher("/oauth2/**", "/.well-known/**")
+				.with(OAuth2AuthorizationServerConfigurer.authorizationServer(), Customizer.withDefaults());
 
 		// @formatter:off
 		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-			.tokenEndpoint(tokenEndpoint -> tokenEndpoint
-				.accessTokenRequestConverter(new CustomPasswordAuthenticationConverter())
-				.authenticationProvider(new CustomPasswordAuthenticationProvider(authorizationService(), tokenGenerator(), userDetailsService, passwordEncoder)));
+				.tokenEndpoint(tokenEndpoint -> tokenEndpoint
+						.accessTokenRequestConverter(new CustomPasswordAuthenticationConverter())
+						.authenticationProvider(new CustomPasswordAuthenticationProvider(authorizationService(),
+								tokenGenerator(), userDetailsService, passwordEncoder, empresaRepository)));
 
-		http.oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer.jwt(Customizer.withDefaults()));
+		http.oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+
+		// CORS para o endpoint /oauth2/token — necessário pois esta chain é separada da
+		// ResourceServer
+		http.cors(cors -> cors.configurationSource(authServerCorsConfigurationSource()));
 		// @formatter:on
 
 		return http.build();
+	}
+
+	private CorsConfigurationSource authServerCorsConfigurationSource() {
+		String[] origins = corsOrigins.split(",");
+		CorsConfiguration corsConfig = new CorsConfiguration();
+		corsConfig.setAllowedOriginPatterns(Arrays.asList(origins));
+		corsConfig.setAllowedMethods(Arrays.asList("POST", "GET", "OPTIONS"));
+		corsConfig.setAllowCredentials(true);
+		corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Tenant-ID"));
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/oauth2/**", corsConfig);
+		source.registerCorsConfiguration("/.well-known/**", corsConfig);
+		return source;
 	}
 
 	@Bean
@@ -101,16 +132,10 @@ public class AuthorizationServerConfig {
 	@Bean
 	public RegisteredClientRepository registeredClientRepository() {
 		// @formatter:off
-		RegisteredClient registeredClient = RegisteredClient
-			.withId(UUID.randomUUID().toString())
-			.clientId(clientId)
-			.clientSecret(passwordEncoder.encode(clientSecret))
-			.scope("read")
-			.scope("write")
-			.authorizationGrantType(new AuthorizationGrantType("password"))
-			.tokenSettings(tokenSettings())
-			.clientSettings(clientSettings())
-			.build();
+		RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString()).clientId(clientId)
+				.clientSecret(passwordEncoder.encode(clientSecret)).scope("read").scope("write")
+				.authorizationGrantType(new AuthorizationGrantType("password")).tokenSettings(tokenSettings())
+				.clientSettings(clientSettings()).build();
 		// @formatter:on
 
 		return new InMemoryRegisteredClientRepository(registeredClient);
@@ -119,10 +144,8 @@ public class AuthorizationServerConfig {
 	@Bean
 	public TokenSettings tokenSettings() {
 		// @formatter:off
-		return TokenSettings.builder()
-			.accessTokenFormat(OAuth2TokenFormat.SELF_CONTAINED)
-			.accessTokenTimeToLive(Duration.ofSeconds(jwtDurationSeconds))
-			.build();
+		return TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.SELF_CONTAINED)
+				.accessTokenTimeToLive(Duration.ofSeconds(jwtDurationSeconds)).build();
 		// @formatter:on
 	}
 
@@ -153,9 +176,7 @@ public class AuthorizationServerConfig {
 			List<String> authorities = user.getAuthorities().stream().map(x -> x.getAuthority()).toList();
 			if (context.getTokenType().getValue().equals("access_token")) {
 				// @formatter:off
-				context.getClaims()
-					.claim("authorities", authorities)
-					.claim("username", user.getUsername());
+				context.getClaims().claim("authorities", authorities).claim("username", user.getUsername());
 				// @formatter:on
 			}
 		};

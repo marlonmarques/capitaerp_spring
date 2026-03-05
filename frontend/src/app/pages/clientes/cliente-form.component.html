@@ -1,0 +1,294 @@
+<div class="p-6 md:p-8 font-sans bg-slate-50 min-h-screen">
+  <header class="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-none mb-1">
+        {{ isEditMode() ? 'Editar Cliente' : 'Novo Cliente' }}
+      </h1>
+      <p class="text-slate-500 font-medium">Preencha os dados cadastrais do cliente</p>
+    </div>
+    <button mat-stroked-button color="primary" class="!rounded-xl !h-12 !px-6" (click)="voltar()">
+      <mat-icon class="mr-2">arrow_back</mat-icon> Voltar
+    </button>
+  </header>
+
+  <form [formGroup]="clienteForm" (ngSubmit)="salvarCliente()">
+    <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden mb-8 max-w-5xl mx-auto">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+          <mat-icon class="text-indigo-500 text-[18px]">person</mat-icon>
+          Dados Básicos
+        </h2>
+      </div>
+      <div class="p-6 bg-white grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <div class="mb-2.5">
+          <label class="field-label">Tipo Cliente</label>
+          <select formControlName="tipoPessoa" class="field-input">
+            <option [ngValue]="1">Pessoa Física</option>
+            <option [ngValue]="2">Pessoa Jurídica</option>
+          </select>
+        </div>
+
+        <div class="mb-2.5">
+          <label class="field-label">{{ clienteForm.get('tipoPessoa')?.value === 2 ?
+            'CNPJ' : 'CPF' }}</label>
+          <div class="flex gap-2 items-center">
+            <div class="flex-1 h-full">
+              <input type="text" formControlName="cpf" [mask]="docMask" class="field-input"
+                placeholder="000.000.000-00">
+            </div>
+            <button type="button" *ngIf="clienteForm.get('tipoPessoa')?.value === 2"
+              class="bg-indigo-600 text-white rounded-lg flex items-center justify-center hover:bg-indigo-700 transition-colors shrink-0 w-10 h-10"
+              (click)="buscarCnpjOuCpf()">
+              <mat-icon>search</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <ng-container *ngIf="clienteForm.get('tipoPessoa')?.value === 2">
+          <div class="mb-2.5">
+            <label class="field-label">Razão Social</label>
+            <input type="text" formControlName="razaoSocial" class="field-input">
+          </div>
+
+          <div class="mb-2.5">
+            <label class="field-label">Nome Fantasia</label>
+            <input type="text" formControlName="name" class="field-input">
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="clienteForm.get('tipoPessoa')?.value === 1">
+          <div class="mb-2.5">
+            <label class="field-label">Nome</label>
+            <input type="text" formControlName="name" class="field-input">
+          </div>
+
+          <div class="mb-2.5">
+            <label class="field-label">Sobrenome</label>
+            <input type="text" formControlName="lastName" class="field-input">
+          </div>
+
+          <div class="mb-2.5">
+            <label class="field-label">RG</label>
+            <input type="text" formControlName="rg" class="field-input">
+          </div>
+        </ng-container>
+
+        <div class="mb-2.5">
+          <label class="field-label">Telefone</label>
+          <div>
+            <input type="text" formControlName="telefone" mask="(00) 0000-0000" class="field-input"
+              placeholder="(00) 0000-0000">
+          </div>
+        </div>
+
+        <div class="mb-2.5">
+          <label class="field-label">Celular / WhatsApp</label>
+          <div>
+            <input type="text" formControlName="celular" mask="(00) 00000-0000" class="field-input"
+              placeholder="(00) 00000-0000">
+          </div>
+        </div>
+      </div>
+    </mat-card>
+
+    <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden mb-8 max-w-5xl mx-auto">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+          <mat-icon class="text-rose-500 text-[18px]">account_balance</mat-icon>
+          Dados Fiscais
+        </h2>
+      </div>
+      <div class="p-6 bg-white grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ng-container *ngIf="clienteForm.get('tipoPessoa')?.value === 2">
+          <div class="mb-2.5">
+            <label class="field-label">Inscrição Estadual</label>
+            <input type="text" formControlName="inscEString" class="field-input">
+          </div>
+
+          <div class="mb-2.5">
+            <label class="field-label">Indicador IE</label>
+            <select formControlName="indIe" class="field-input">
+              <option [ngValue]="1">1 - Contribuinte ICMS</option>
+              <option [ngValue]="2">2 - Contribuinte Isento</option>
+              <option [ngValue]="9">9 - Não contribuinte</option>
+            </select>
+          </div>
+        </ng-container>
+
+        <div class="mb-2.5">
+          <label class="field-label">Posição Fiscal</label>
+          <select formControlName="posicaoFiscalId" class="field-input">
+            <option [ngValue]="null">-- Selecionar posição fiscal --</option>
+            <option *ngFor="let pf of posicoesFiscais()" [ngValue]="pf.id">{{ pf.nome }}</option>
+          </select>
+          <p class="text-xs text-slate-400 mt-1">Define as regras tributárias padrão para este cliente.</p>
+        </div>
+
+        <div class="mb-2.5">
+          <label class="field-label">Forma/Condição de Pagamento Padrão</label>
+          <select formControlName="codPagto" class="field-input">
+            <option [ngValue]="null">-- Selecionar forma de pagamento --</option>
+            <option *ngFor="let cp of condicoesPagamento()" [ngValue]="+cp.id">{{ cp.label }}</option>
+          </select>
+          <p class="text-xs text-slate-400 mt-1">Forma de pagamento mais usada por este cliente.</p>
+        </div>
+
+        <div class="mb-2.5" *ngIf="clienteForm.get('tipoPessoa')?.value === 2">
+          <label class="field-label">Reter ISS</label>
+          <select formControlName="reterIss" class="field-input">
+            <option [ngValue]="false">Não</option>
+            <option [ngValue]="true">Sim</option>
+          </select>
+        </div>
+
+        <div class="mb-2.5 md:col-span-2">
+          <label class="field-label">Nota interna</label>
+          <textarea formControlName="notaInterna" class="field-input resize-none h-[120px]" rows="3"></textarea>
+        </div>
+      </div>
+    </mat-card>
+
+    <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden mb-8 max-w-5xl mx-auto">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+          <mat-icon class="text-blue-500 text-[18px]">email</mat-icon>
+          E-mails Associados
+        </h2>
+        <button type="button" mat-stroked-button color="primary" class="!rounded-lg !h-10" (click)="adicionarEmail()">
+          <mat-icon class="text-[18px]">add</mat-icon> E-mail
+        </button>
+      </div>
+      <div class="p-6 bg-slate-50" formArrayName="emails">
+        <div *ngFor="let emailCtrl of emails.controls; let i=index" [formGroupName]="i"
+          class="flex items-end gap-3 mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200 transition-all hover:border-indigo-300">
+          <div class="flex-1">
+            <label class="block text-xs font-semibold text-slate-500 mb-1">E-mail {{ i + 1 }}</label>
+            <input type="email" formControlName="email" class="field-input">
+          </div>
+          <div class="flex items-center gap-2 pb-0 mb-1.5 h-10">
+            <button type="button"
+              class="text-xs font-semibold px-4 py-2 h-full rounded-lg transition-all border border-transparent flex items-center"
+              [ngClass]="emailCtrl.get('principal')?.value ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
+              (click)="setPrincipalEmail(i)">
+              Padrão
+            </button>
+            <button type="button" mat-icon-button class="!text-red-500 !bg-red-50 hover:!bg-red-100 transition-colors"
+              (click)="removerEmail(i)">
+              <mat-icon class="text-[20px]">delete</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="emails.length === 0"
+          class="text-center py-4 text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+          Nenhum e-mail adicionado. Clique no botão acima para adicionar.
+        </div>
+      </div>
+    </mat-card>
+
+    <!-- Endereços -->
+    <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden mb-8 max-w-5xl mx-auto">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+          <mat-icon class="text-emerald-500 text-[18px]">location_on</mat-icon>
+          Endereços Associados
+        </h2>
+        <button type="button" mat-stroked-button color="primary" class="!rounded-lg !h-10"
+          (click)="adicionarEndereco()">
+          <mat-icon class="text-[18px]">add</mat-icon> Endereço
+        </button>
+      </div>
+      <div class="p-6 bg-slate-50" formArrayName="enderecos">
+        <div *ngFor="let endCtrl of enderecos.controls; let eIndex=index" [formGroupName]="eIndex"
+          class="mb-2.5 bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative transition-all hover:border-indigo-300">
+          <div class="absolute top-6 right-6 flex gap-2 items-center">
+            <button type="button"
+              class="text-xs h-9 font-semibold px-4 py-1.5 rounded-lg transition-all border border-transparent flex items-center"
+              [ngClass]="endCtrl.get('principal')?.value ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
+              (click)="setPrincipalEndereco(eIndex)">
+              Endereço Padrão
+            </button>
+            <button type="button" mat-icon-button class="!text-red-500 !bg-red-50 hover:!bg-red-100 transition-colors"
+              (click)="removerEndereco(eIndex)">
+              <mat-icon class="text-[20px]">delete</mat-icon>
+            </button>
+          </div>
+
+          <h3 class="font-bold text-slate-700 mb-5 flex items-center gap-2">
+            <mat-icon class="text-slate-400">home</mat-icon> Local {{ eIndex + 1 }}
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-1">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">CEP</label>
+              <div class="flex gap-2 items-center">
+                <div class="flex-1 h-full">
+                  <input type="text" formControlName="cep" mask="00000-000" class="field-input" placeholder="00000-000">
+                </div>
+                <button type="button"
+                  class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center justify-center shrink-0 w-10 h-10 transition-colors"
+                  (click)="buscarCepDetalhes(eIndex)">
+                  <mat-icon class="text-[20px]">search</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Endereço (Rua/Avenida)</label>
+              <input type="text" formControlName="logradouro" class="field-input">
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Número</label>
+              <input type="text" formControlName="numero" class="field-input">
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Complemento</label>
+              <input type="text" formControlName="complemento" class="field-input">
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Bairro</label>
+              <input type="text" formControlName="bairro" class="field-input">
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Estado (UF)</label>
+              <select formControlName="estado" (change)="onUfChange(eIndex)" class="field-input">
+                <option value="">Selecione</option>
+                <option *ngFor="let estado of estados()" [value]="estado.sigla">{{ estado.nome }}</option>
+              </select>
+            </div>
+
+            <div class="md:col-span-1">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Cidade (Município)</label>
+              <select formControlName="cidade" class="field-input"
+                [attr.disabled]="getCidadesForEndereco(eIndex).length === 0 ? true : null">
+                <option value="">Selecione</option>
+                <option *ngFor="let municipio of getCidadesForEndereco(eIndex)" [value]="municipio.nome">{{
+                  municipio.nome }}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="enderecos.length === 0"
+          class="text-center py-4 text-slate-500 border border-dashed border-slate-300 rounded-xl bg-white">
+          Nenhum endereço adicionado. Clique no botão acima para adicionar.
+        </div>
+      </div>
+    </mat-card>
+
+    <div class="flex justify-end gap-3 mt-6 max-w-5xl mx-auto">
+      <button type="button" mat-stroked-button class="!rounded-xl !h-12 !min-w-[120px]"
+        (click)="voltar()">Cancelar</button>
+      <button type="submit" mat-flat-button color="primary"
+        class="!rounded-xl !bg-indigo-600 !h-12 !px-8 hover:!bg-indigo-700 transition-colors shadow-sm"
+        [disabled]="clienteForm.invalid">
+        <mat-icon class="mr-1">save</mat-icon> Salvar Cliente
+      </button>
+    </div>
+  </form>
+</div>

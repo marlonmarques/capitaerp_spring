@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-CapitalerpApplication<capitalerp>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.erp.capitalerp.CapitalerpApplication",
+            "projectName": "capitalerp",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

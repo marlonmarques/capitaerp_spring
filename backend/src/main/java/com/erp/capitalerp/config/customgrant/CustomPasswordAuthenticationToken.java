@@ -13,28 +13,33 @@ import org.springframework.security.oauth2.server.authorization.authentication.O
 public class CustomPasswordAuthenticationToken extends OAuth2AuthorizationGrantAuthenticationToken {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private final String username;
 	private final String password;
+	private final String tenantIdentifier;
 	private final Set<String> scopes;
-	
-	public CustomPasswordAuthenticationToken(Authentication clientPrincipal,
-			@Nullable Set<String> scopes, @Nullable Map<String, Object> additionalParameters) {
-		
+
+	public CustomPasswordAuthenticationToken(Authentication clientPrincipal, @Nullable Set<String> scopes,
+			@Nullable Map<String, Object> additionalParameters) {
+
 		super(new AuthorizationGrantType("password"), clientPrincipal, additionalParameters);
-		
+
 		this.username = (String) additionalParameters.get("username");
 		this.password = (String) additionalParameters.get("password");
-		this.scopes = Collections.unmodifiableSet(
-				scopes != null ? new HashSet<>(scopes) : Collections.emptySet());
+		this.tenantIdentifier = (String) additionalParameters.get("tenantIdentifier");
+		this.scopes = Collections.unmodifiableSet(scopes != null ? new HashSet<>(scopes) : Collections.emptySet());
 	}
 
 	public String getUsername() {
 		return this.username;
 	}
-	
+
 	public String getPassword() {
 		return this.password;
+	}
+
+	public String getTenantIdentifier() {
+		return this.tenantIdentifier;
 	}
 
 	public Set<String> getScopes() {

@@ -18,7 +18,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 @Profile("prod")
 @EnableJpaRepositories(
-        basePackages = "com.erp.capitalerp.repositories",
+        basePackages = "com.erp.capitalerp.infrastructure.persistence",
         entityManagerFactoryRef = "postgresEntityManager",
         transactionManagerRef = "postgresTransactionManager"
 )
@@ -45,7 +45,7 @@ public class PostgresConfig {
     public LocalContainerEntityManagerFactoryBean postgresEntityManager() {
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
         em.setDataSource(postgresDataSource());
-        em.setPackagesToScan("com.erp.capitalerp.entities");
+        em.setPackagesToScan("com.erp.capitalerp.domain");
 
         HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         vendorAdapter.setGenerateDdl(true);

@@ -1,0 +1,227 @@
+<div class="space-y-6 max-w-5xl mx-auto pb-12 w-full">
+
+    <div class="flex items-center justify-between mb-2">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                <mat-icon class="text-indigo-600">settings</mat-icon>
+                Config Geral Fiscal
+            </h2>
+            <p class="text-slate-500 text-sm font-medium mt-1">
+                Gerencie o certificado digital (A1), ambientes de emissão e regime tributário.
+            </p>
+        </div>
+
+        <div class="flex gap-2">
+            <button mat-flat-button color="primary" [disabled]="isSaving || isLoading || configForm.invalid"
+                (click)="salvar()"
+                class="!rounded-xl !h-11 !px-6 !font-bold shadow-md shadow-indigo-600/20 w-full sm:w-auto">
+                <mat-icon *ngIf="!isSaving">save</mat-icon>
+                <span *ngIf="isSaving" class="pi pi-spinner pi-spin mr-2"></span>
+                {{ isSaving ? 'Salvando...' : 'Salvar Alterações' }}
+            </button>
+        </div>
+    </div>
+
+    <form *ngIf="configForm && !isLoading" [formGroup]="configForm" class="space-y-6">
+
+        <!-- Certificado Digital -->
+        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+                    <mat-icon class="text-indigo-500 text-[18px]">security</mat-icon>
+                    Certificado Digital (A1)
+                </h2>
+            </div>
+
+            <div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Upload Forms -->
+                <div class="space-y-6">
+                    <div class="mb-2.5">
+                        <label class="field-label">Documento (.pfx ou .p12)</label>
+                        <div class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 rounded-xl hover:border-indigo-500 cursor-pointer bg-slate-50 transition-colors"
+                            (click)="triggerFileInput()">
+                            <input type="file" id="fileUpload" class="hidden" accept=".pfx,.p12"
+                                (change)="onFileSelected($event)">
+                            <div class="text-slate-500 text-center flex flex-col items-center">
+                                <mat-icon class="text-indigo-400 mb-2 text-3xl h-8 w-8">cloud_upload</mat-icon>
+                                <span *ngIf="!selectedFile">Arraste o arquivo ou <span
+                                        class="text-indigo-600 font-semibold cursor-pointer text-sm">Clique
+                                        aqui</span></span>
+                                <span *ngIf="selectedFile" class="font-medium text-slate-800 break-all">{{
+                                    selectedFile.name }}</span>
+                            </div>
+                        </div>
+                        <span class="text-xs text-slate-400 mt-2 block">Upload apenas se desejar trocar o atual.</span>
+                    </div>
+
+                    <div class="mb-2.5">
+                        <label class="field-label">Senha do Certificado</label>
+                        <input type="password" formControlName="senhaCertificado" class="field-input w-full bg-white"
+                            autocomplete="new-password" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <!-- Status Panel -->
+                <div>
+                    <div
+                        class="h-full border border-slate-100 rounded-xl bg-slate-50 p-6 flex flex-col justify-center relative overflow-hidden">
+
+                        <div *ngIf="!certInfo || certInfo.status === 'SEM_CERTIFICADO'" class="text-center">
+                            <mat-icon class="text-slate-300 text-5xl h-12 w-12 mb-3">error_outline</mat-icon>
+                            <h3 class="font-bold text-slate-700 text-lg">Sem Certificado</h3>
+                            <p class="text-slate-500 text-sm mt-1">Faça o upload do arquivo .PFX para habilitar as
+                                emissões fiscais no sistema.</p>
+                        </div>
+
+                        <div *ngIf="certInfo && certInfo.status !== 'SEM_CERTIFICADO'"
+                            class="flex flex-col h-full justify-center">
+                            <ng-container *ngIf="certInfo.status === 'VALIDO'">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                                        <mat-icon class="text-emerald-600">check_circle</mat-icon>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-emerald-600 uppercase tracking-wider text-sm">Válido
+                                        </h3>
+                                        <p class="text-slate-500 text-xs mt-0.5">Assinatura Ativa</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-3 bg-white p-4 rounded-lg border border-slate-100 shadow-sm">
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-slate-500 font-medium">Vencimento:</span>
+                                        <span class="font-bold text-slate-700">{{ certInfo.vencimento |
+                                            date:'dd/MM/yyyy' }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-slate-500 font-medium">Restante:</span>
+                                        <span class="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{{
+                                            certInfo.diasRestantes }}
+                                            dias</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-4 break-words text-center">{{ certInfo.emissor }}
+                                </p>
+                            </ng-container>
+
+                            <ng-container *ngIf="certInfo.status === 'EXPIRADO'">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center">
+                                        <mat-icon class="text-rose-600">cancel</mat-icon>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-bold text-rose-600 uppercase tracking-wider text-sm">Expirado
+                                        </h3>
+                                        <p class="text-slate-500 text-xs mt-0.5">Assinatura Inválida</p>
+                                    </div>
+                                </div>
+                                <div class="space-y-3 bg-white p-4 rounded-lg border border-slate-100 shadow-sm">
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-slate-500 font-medium">Venceu em:</span>
+                                        <span class="font-bold text-rose-600">{{ certInfo.vencimento | date:'dd/MM/yyyy'
+                                            }}</span>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-4 break-words text-center">{{ certInfo.emissor }}
+                                </p>
+                            </ng-container>
+
+                            <ng-container *ngIf="certInfo.status === 'ERRO_LEITURA'">
+                                <div class="text-center">
+                                    <mat-icon class="text-rose-400 text-5xl h-12 w-12 mb-3">gpp_bad</mat-icon>
+                                    <h3 class="font-bold text-rose-600 text-lg">Erro de Leitura</h3>
+                                    <p class="text-slate-500 text-sm mt-1">O arquivo parece estar corrompido ou é
+                                        inválido.</p>
+                                </div>
+                            </ng-container>
+
+                            <ng-container *ngIf="certInfo.status === 'SENHA_INCORRETA'">
+                                <div class="text-center">
+                                    <mat-icon class="text-amber-400 text-5xl h-12 w-12 mb-3">key_off</mat-icon>
+                                    <h3 class="font-bold text-amber-600 text-lg">Senha Incorreta</h3>
+                                    <p class="text-slate-500 text-sm mt-1">A senha informada não corresponde ao
+                                        certificado.</p>
+                                </div>
+                            </ng-container>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </mat-card>
+
+        <!-- Informações Fiscais da Empresa -->
+        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+                    <mat-icon class="text-amber-500 text-[18px]">domain</mat-icon>
+                    Informações Fiscais da Empresa
+                </h2>
+            </div>
+
+            <div class="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Ambiente Serviços -->
+                <div class="mb-2.5">
+                    <label class="field-label">Ambiente Serviços (NFS-e) <span class="text-rose-500">*</span></label>
+                    <select formControlName="ambienteServicos" class="field-input w-full bg-white">
+                        <option value="Produção">Produção</option>
+                        <option value="Homologação">Homologação</option>
+                    </select>
+                </div>
+
+                <!-- Ambiente Produtos -->
+                <div class="mb-2.5">
+                    <label class="field-label">Ambiente Produtos (NF-e/NFC-e) <span
+                            class="text-rose-500">*</span></label>
+                    <select formControlName="ambienteProdutos" class="field-input w-full bg-white">
+                        <option value="Produção">Produção</option>
+                        <option value="Homologação">Homologação</option>
+                    </select>
+                </div>
+
+                <!-- Regime Tributário -->
+                <div class="mb-2.5">
+                    <label class="field-label">Regime Tributário <span class="text-rose-500">*</span></label>
+                    <select formControlName="regimeTributario" class="field-input w-full bg-white">
+                        <option [ngValue]="1">1 - Microempresa Municipal</option>
+                        <option [ngValue]="2">2 - Estimativa</option>
+                        <option [ngValue]="3">3 - Regime Normal</option>
+                        <option [ngValue]="4">4 - Cooperativa</option>
+                        <option [ngValue]="5">5 - MEI</option>
+                        <option [ngValue]="6">6 - Simples Nacional</option>
+                    </select>
+                </div>
+
+                <!-- Faturamento Anual -->
+                <div class="mb-2.5">
+                    <label class="field-label">Faturamento Anual <span class="text-rose-500">*</span></label>
+                    <p-inputNumber formControlName="faturamentoAnual" mode="currency" currency="BRL" locale="pt-BR"
+                        placeholder="R$ 0,00" styleClass="field-input p-0 h-full w-full"
+                        [inputStyle]="{'width': '100%', 'height': '46px', 'padding': '0 16px', 'border': 'none', 'background': 'transparent'}">
+                    </p-inputNumber>
+                </div>
+
+                <!-- CNAE Principal -->
+                <div class="mb-2.5 md:col-span-2">
+                    <label class="field-label">CNAE Principal <span class="text-rose-500">*</span></label>
+                    <input type="text" [formControl]="cnaeSearchCtrl" [matAutocomplete]="autoCnae"
+                        class="field-input w-full" placeholder="Pesquisar CNAE...">
+                    <mat-autocomplete #autoCnae="matAutocomplete" [displayWith]="displayCnae"
+                        (optionSelected)="selecionarCnae($event.option.value)">
+                        <mat-option *ngFor="let c of cnaes" [value]="c">
+                            {{ c.label }}
+                        </mat-option>
+                    </mat-autocomplete>
+                </div>
+
+            </div>
+        </mat-card>
+
+    </form>
+
+    <!-- Skeleton Loader -->
+    <div *ngIf="isLoading" class="space-y-6 animate-pulse mt-6">
+        <div class="h-64 bg-slate-200 rounded-2xl w-full"></div>
+        <div class="h-64 bg-slate-200 rounded-2xl w-full"></div>
+    </div>
+
+</div>

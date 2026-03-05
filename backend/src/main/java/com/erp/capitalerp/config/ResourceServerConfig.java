@@ -22,6 +22,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import com.erp.capitalerp.config.multitenancy.TenantInterceptor;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -29,6 +31,24 @@ public class ResourceServerConfig {
 
 	@Value("${cors.origins}")
 	private String corsOrigins;
+
+	@Bean
+	public TenantInterceptor tenantInterceptor() {
+		return new TenantInterceptor();
+	}
+
+	/**
+	 * Registra o TenantInterceptor com a maior prioridade possível, garantindo que
+	 * o tenant seja resolvido ANTES do filtro de segurança do Spring Authorization
+	 * Server processar /oauth2/token.
+	 */
+	@Bean
+	FilterRegistrationBean<TenantInterceptor> tenantFilterRegistration() {
+		FilterRegistrationBean<TenantInterceptor> bean = new FilterRegistrationBean<>(tenantInterceptor());
+		bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+		bean.addUrlPatterns("/*");
+		return bean;
+	}
 
 	@Bean
 	@Profile("test")
@@ -70,7 +90,7 @@ public class ResourceServerConfig {
 		corsConfig.setAllowedOriginPatterns(Arrays.asList(origins));
 		corsConfig.setAllowedMethods(Arrays.asList("POST", "GET", "PUT", "DELETE", "PATCH"));
 		corsConfig.setAllowCredentials(true);
-		corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+		corsConfig.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Tenant-ID"));
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", corsConfig);

@@ -14,16 +14,24 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(
     private authService: AuthService,
     private notification: NotificationService
-  ) {}
+  ) { }
 
   intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
-    //if (this.isApiRequest(request)) {
+    // Não interceptar endpoints OAuth2 — eles já carregam Authorization: Basic
+    if (this.isOAuthRequest(request)) {
+      return next.handle(request);
+    }
+
     const token = this.authService.getToken();
+    const tenantId = this.authService.getTenant();
 
     if (token) {
       request = this.addToken(request, token);
     }
-  //}
+
+    if (tenantId) {
+      request = this.addTenant(request, tenantId);
+    }
 
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -41,6 +49,10 @@ export class AuthInterceptor implements HttpInterceptor {
     );
   }
 
+  private isOAuthRequest(request: HttpRequest<any>): boolean {
+    return request.url.includes('/oauth2/');
+  }
+
   private isApiRequest(request: HttpRequest<any>): boolean {
     return request.url.includes('/api/') || request.url.includes('/oauth/');
   }
@@ -49,6 +61,14 @@ export class AuthInterceptor implements HttpInterceptor {
     return request.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`
+      }
+    });
+  }
+
+  private addTenant(request: HttpRequest<any>, tenantId: string): HttpRequest<any> {
+    return request.clone({
+      setHeaders: {
+        'X-Tenant-ID': tenantId
       }
     });
   }

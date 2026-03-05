@@ -8,6 +8,7 @@ export interface User {
 }
 
 export interface LoginRequest {
+  tenantIdentifier: string;
   email: string;
   password: string;
 }
@@ -22,10 +23,11 @@ export interface AuthResponse {
 }
 
 export interface TokenPayload {
-  user_name: string;
-  scope: string[];
+  sub: string;
+  username: string;       // campo real do JWT: "username"
+  scope: string;          // JWT do Spring Auth Server retorna scope como string
   exp: number;
   authorities: string[];
   jti: string;
-  client_id: string;
+  client_id?: string;
 }

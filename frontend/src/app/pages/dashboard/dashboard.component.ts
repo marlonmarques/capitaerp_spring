@@ -1,68 +1,48 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatTableModule } from '@angular/material/table';
+import { MatChipsModule } from '@angular/material/chips';
+import { EmpresaService } from '../../core/services/empresa.service';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 @Component({
   selector: 'app-dashboard',
-  template: `
-    <div>
-      <h1>Dashboard</h1>
-      <p>Bem-vindo ao Capital ERP</p>
-      
-      <div nz-row [nzGutter]="16">
-        <div nz-col [nzSpan]="6">
-          <nz-card>
-            <div class="statistic">
-              <i nz-icon nzType="shopping" style="font-size: 24px; color: #1890ff;"></i>
-              <h3>128</h3>
-              <p>Produtos</p>
-            </div>
-          </nz-card>
-        </div>
-        
-        <div nz-col [nzSpan]="6">
-          <nz-card>
-            <div class="statistic">
-              <i nz-icon nzType="folder" style="font-size: 24px; color: #52c41a;"></i>
-              <h3>24</h3>
-              <p>Categorias</p>
-            </div>
-          </nz-card>
-        </div>
-        
-        <div nz-col [nzSpan]="6">
-          <nz-card>
-            <div class="statistic">
-              <i nz-icon nzType="dollar" style="font-size: 24px; color: #faad14;"></i>
-              <h3>15.678</h3>
-              <p>Vendas</p>
-            </div>
-          </nz-card>
-        </div>
-        
-        <div nz-col [nzSpan]="6">
-          <nz-card>
-            <div class="statistic">
-              <i nz-icon nzType="user" style="font-size: 24px; color: #f5222d;"></i>
-              <h3>85%</h3>
-              <p>Usuários Ativos</p>
-            </div>
-          </nz-card>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .statistic {
-      text-align: center;
-      h3 {
-        margin: 8px 0;
-        font-size: 24px;
-        font-weight: bold;
-      }
-      p {
-        margin: 0;
-        color: #666;
-      }
-    }
-  `]
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatCardModule,
+    MatIconModule,
+    MatButtonModule,
+    MatDividerModule,
+    MatTableModule,
+    MatChipsModule,
+    PageHeaderComponent
+  ],
+  templateUrl: './dashboard.component.html',
+  styleUrls: ['./dashboard.component.css']
 })
-export class DashboardComponent { }
+export class DashboardComponent implements OnInit {
+  public empresaService = inject(EmpresaService);
+
+  // Mock data para exibição do layout profissional
+  public recentProducts = [
+    { id: 1, name: 'Notebook Pro X', category: 'Eletrônicos', stock: 45, price: 5490.00, status: 'Ativo' },
+    { id: 2, name: 'Cadeira Ergônomica', category: 'Móveis', stock: 12, price: 1250.00, status: 'Alerta' },
+    { id: 3, name: 'Mouse Sem Fio Ultra', category: 'Acessórios', stock: 156, price: 129.90, status: 'Ativo' },
+    { id: 4, name: 'Monitor Ultrawide 34"', category: 'Eletrônicos', stock: 8, price: 3200.00, status: 'Ativo' }
+  ];
+
+  public recentClients = [
+    { id: 101, name: 'Acme Corp', email: 'contato@acme.com', phone: '(11) 98765-4321', type: 'Empresa', status: 'Ativo' },
+    { id: 102, name: 'João Silva', email: 'joao.silva@email.com', phone: '(21) 99999-8888', type: 'Pessoa Física', status: 'Ativo' },
+    { id: 103, name: 'Tech Solutions LTDA', email: 'vendas@techsolutions.com', phone: '(31) 3333-4444', type: 'Empresa', status: 'Inativo' }
+  ];
+
+  ngOnInit(): void {
+    // Inicialização
+  }
+}
