@@ -12,3 +12,7 @@ deploy.yml
 deploy.sh
 .env
 variaveis
+.vscode
+.agent
+.agents
+/gg
