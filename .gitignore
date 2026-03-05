@@ -6,13 +6,13 @@
 /out-tsc
 /bazel-out
 /data
+/gg
+/.agent
+/.agents
+/.vscode
 
 # Miscellaneous
 deploy.yml
 deploy.sh
 .env
 variaveis
-.vscode
-.agent
-.agents
-/gg
