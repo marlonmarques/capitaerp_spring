@@ -1,9 +1,17 @@
+export interface Role {
+  id: number;
+  authority: string;
+}
+
 export interface User {
   id: number;
   email: string;
   firstName: string;
   lastName: string;
-  roles: string[];
+  password?: string;
+  roles: Role[];
+  filialId?: string;
+  filiais?: any[]; // Pode ser tipado como Filial[] se importar de filial.model.ts
   permissions?: string[];
 }
 
@@ -24,8 +32,8 @@ export interface AuthResponse {
 
 export interface TokenPayload {
   sub: string;
-  username: string;       // campo real do JWT: "username"
-  scope: string;          // JWT do Spring Auth Server retorna scope como string
+  username: string;
+  scope: string;
   exp: number;
   authorities: string[];
   jti: string;

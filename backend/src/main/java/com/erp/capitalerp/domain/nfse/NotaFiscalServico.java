@@ -25,6 +25,9 @@ import java.time.LocalDateTime;
 @Table(name = "nfse")
 public class NotaFiscalServico extends BaseEntity {
 
+    @Column(name = "filial_id")
+    private java.util.UUID filialId;
+
     // ─── Identificação ────────────────────────────────────────────────────────
 
     @Column(nullable = false)
@@ -83,7 +86,7 @@ public class NotaFiscalServico extends BaseEntity {
     private String municipioIbge;
 
     @Column(length = 2)
-    private String ufPrestacao = "DF";
+    private String ufPrestacao;
 
     private Short exigibilidadeIss = 1;
 
@@ -408,5 +411,13 @@ public class NotaFiscalServico extends BaseEntity {
 
     public void setMensagemRetorno(String mensagemRetorno) {
         this.mensagemRetorno = mensagemRetorno;
+    }
+
+    public java.util.UUID getFilialId() {
+        return filialId;
+    }
+
+    public void setFilialId(java.util.UUID filialId) {
+        this.filialId = filialId;
     }
 }

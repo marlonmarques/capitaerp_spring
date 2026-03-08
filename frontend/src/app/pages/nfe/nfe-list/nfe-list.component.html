@@ -1,0 +1,180 @@
+<div class="max-w-[1400px] mx-auto animate-in fade-in duration-500">
+  <div class="nfe-header">
+    <div class="header-text">
+      <h1>📦 Fatura NF-e (Produtos)</h1>
+      <p>Emissão, acompanhamento e status de notas fiscais de venda</p>
+    </div>
+    <button class="btn-primary" routerLink="/contabilidade/nfe/nova">
+      <i class="pi pi-plus"></i> Nova NF-e
+    </button>
+  </div>
+
+<div class="nfe-content">
+
+  <!-- KPI Row: Status Counts -->
+  <div class="kpi-row">
+    <div class="kpi kpi-total">
+      <span class="kpi-val">{{ resumo.total || 0 }}</span>
+      <span class="kpi-lbl">Total</span>
+    </div>
+    <div class="kpi kpi-auth">
+      <span class="kpi-val">{{ resumo.autorizadas || 0 }}</span>
+      <span class="kpi-lbl">Autorizadas</span>
+    </div>
+    <div class="kpi kpi-proc">
+      <span class="kpi-val">{{ resumo.processando || 0 }}</span>
+      <span class="kpi-lbl">Processando</span>
+    </div>
+    <div class="kpi kpi-rej">
+      <span class="kpi-val">{{ resumo.rejeitadas || 0 }}</span>
+      <span class="kpi-lbl">Rejeitadas</span>
+    </div>
+  </div>
+
+  <!-- Values Panel: Month Over Month -->
+  <div class="values-panel mt-4">
+    <div class="value-card m-atual">
+      <span class="v-label">Vendas Mês Atual (Autorizadas)</span>
+      <span class="v-amount">{{ resumo.valorMesAtual | currency:'BRL' }}</span>
+      <div class="v-trend up">
+        <i class="pi pi-arrow-up"></i>
+        <span>Status: Em conformidade</span>
+      </div>
+    </div>
+    <div class="value-card m-anterior">
+      <span class="v-label">Vendas Mês Anterior</span>
+      <span class="v-amount secondary">{{ (resumo.valorMesAnterior || 0.00) | currency:'BRL' }}</span>
+      <span class="v-sub">Comparativo para análise fiscal</span>
+    </div>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="filters-bar mt-4">
+    <div class="filter-search">
+      <i [class]="carregandoFiltro ? 'pi pi-spin pi-spinner text-blue-500' : 'pi pi-search'"></i>
+      <input type="text" [(ngModel)]="busca" (input)="onFilter()" placeholder="Buscar por número, chave ou cliente...">
+    </div>
+    <div class="filter-status">
+      <button *ngFor="let s of statusList" class="status-filter" [class.active]="filtroStatus === s.value"
+        (click)="filtrarStatus(s.value)">
+        {{ s.label }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="card mt-3 overflow-hidden shadow-sm border-0 rounded-xl">
+    <p-table [value]="notas" [lazy]="true" (onLazyLoad)="carregarNotas($event)" [paginator]="true" [rows]="rows"
+      [totalRecords]="totalRecords" [loading]="loading" [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
+      [rowsPerPageOptions]="[10, 25, 50]" styleClass="p-datatable-sm dash-table">
+
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Número/Série</th>
+          <th>Emissão</th>
+          <th>Cliente</th>
+          <th>Valor Total</th>
+          <th>Status</th>
+          <th class="text-center" style="width: 180px">Ações</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-nota>
+        <tr class="clickable-row" (click)="abrirNota(nota)">
+          <td>
+            <div class="nfe-num-block">
+              <span class="nfe-main">#{{ nota.numero }} (M{{ nota.modelo === 'NFE' ? '55' : '65' }})</span>
+              <span class="nfe-sub">Série {{ nota.serie }}</span>
+            </div>
+          </td>
+          <td class="text-slate-500 text-sm">{{ nota.dataEmissao | date: 'dd/MM/yyyy HH:mm' }}</td>
+          <td>
+            <div class="cliente-info">
+              <span class="c-name">{{ nota.clienteNome || 'Não informado' }}</span>
+              <span class="c-doc text-xs text-slate-400">{{ nota.clienteDocumento || '' }}</span>
+            </div>
+          </td>
+          <td class="font-bold text-slate-700">{{ nota.valorTotalNota | currency: 'BRL' }}</td>
+          <td>
+            <span class="status-badge" [class]="'badge-' + nota.status.toLowerCase()">
+              {{ nota.status }}
+            </span>
+          </td>
+          <td>
+            <div class="actions-row">
+              <!-- RASCUNHO e REJEITADA -->
+              <ng-container *ngIf="nota.status === 'RASCUNHO' || nota.status === 'REJEITADA'">
+                <button class="btn-action btn-edit" [routerLink]="['/contabilidade/nfe/editar', nota.id]"
+                  pTooltip="Editar" (click)="$event.stopPropagation()">
+                  <i class="pi pi-pencil"></i>
+                </button>
+                <button class="btn-action btn-emitir" (click)="emitir(nota); $event.stopPropagation()"
+                  pTooltip="Emitir Agora">
+                  <i class="pi pi-send"></i>
+                </button>
+                <button class="btn-action btn-del" (click)="excluir(nota); $event.stopPropagation()" pTooltip="Excluir">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </ng-container>
+
+              <!-- PROCESSANDO -->
+              <ng-container *ngIf="nota.status === 'PROCESSANDO'">
+                <button class="btn-action btn-consultar" (click)="consultar(nota); $event.stopPropagation()"
+                  pTooltip="Consultar Status">
+                  <i class="pi pi-sync"></i>
+                </button>
+                <button class="btn-action btn-info" pTooltip="Ver Mensagem"
+                  (click)="messageService.add({severity:'info', summary:'Mensagem SEFAZ', detail: nota.mensagemRetorno || 'Sem detalhes'}); $event.stopPropagation()">
+                  <i class="pi pi-info-circle"></i>
+                </button>
+              </ng-container>
+
+              <!-- AUTORIZADA -->
+              <ng-container *ngIf="nota.status === 'AUTORIZADA'">
+                <button class="btn-action btn-xml" pTooltip="Baixar XML"
+                  (click)="baixarXml(nota); $event.stopPropagation()">
+                  <i class="pi pi-download"></i>
+                </button>
+                <button class="btn-action btn-imprimir" pTooltip="Imprimir DANFE"
+                  (click)="imprimir(nota); $event.stopPropagation()">
+                  <i class="pi pi-print"></i>
+                </button>
+                <button class="btn-action btn-cancelar-nota"
+                  (click)="prepararCancelamento(nota); $event.stopPropagation()" pTooltip="Cancelar NFe">
+                  <i class="pi pi-times-circle"></i>
+                </button>
+              </ng-container>
+
+              <!-- CANCELADA -->
+              <ng-container *ngIf="nota.status === 'CANCELADA'">
+                <button class="btn-action btn-view" pTooltip="Visualizar"
+                  (click)="imprimir(nota); $event.stopPropagation()">
+                  <i class="pi pi-eye"></i>
+                </button>
+              </ng-container>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="6">
+            <div class="empty-placeholder">
+              <i class="pi pi-inbox"></i>
+              <p>Nenhuma nota encontrada para os filtros aplicados.</p>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- SSE Emissão Status Panel -->
+<app-nfe-emissao-status *ngIf="showEmissaoStatus" #statusPanel [nfeId]="nfeIdParaEmissao!"
+  [nomeCliente]="nomeClienteParaEmissao" [numeroNota]="numeroNotaParaEmissao" (finalizado)="onEmissaoFinalizada($event)"
+  (fechar)="fecharModalEmissao()">
+</app-nfe-emissao-status>
+</div>

@@ -40,6 +40,12 @@ public class ProdutoController {
         return ResponseEntity.ok(produtoService.listarAtivos());
     }
 
+    @GetMapping("/venda")
+    public ResponseEntity<List<com.erp.capitalerp.application.estoque.dto.ProdutoBuscaVendaDTO>> buscarParaVenda(
+            @RequestParam String busca) {
+        return ResponseEntity.ok(produtoService.buscarParaVenda(busca));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProdutoDTO> buscarPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(produtoService.buscarPorId(id));

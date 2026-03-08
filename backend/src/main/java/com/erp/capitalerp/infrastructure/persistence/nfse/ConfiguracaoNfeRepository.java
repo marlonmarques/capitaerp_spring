@@ -9,5 +9,6 @@ import java.util.UUID;
 
 @Repository
 public interface ConfiguracaoNfeRepository extends JpaRepository<ConfiguracaoNfe, UUID> {
+    Optional<ConfiguracaoNfe> findByTenantIdentifierAndFilialId(String tenantIdentifier, UUID filialId);
     Optional<ConfiguracaoNfe> findTopByTenantIdentifierOrderByIdAsc(String tenantIdentifier);
 }

@@ -19,6 +19,7 @@ public class ConfiguracaoNfse extends BaseEntity {
     private UUID categoriaId;
     private String infoComplementarPadrao;
     private String cnaePadrao;
+    private String nbsPadrao;
     private String itemLc116Padrao;
     private BigDecimal aliquotaPadrao;
     private UUID contaBancariaId;
@@ -92,6 +93,14 @@ public class ConfiguracaoNfse extends BaseEntity {
 
     public void setCnaePadrao(String cnaePadrao) {
         this.cnaePadrao = cnaePadrao;
+    }
+
+    public String getNbsPadrao() {
+        return nbsPadrao;
+    }
+
+    public void setNbsPadrao(String nbsPadrao) {
+        this.nbsPadrao = nbsPadrao;
     }
 
     public String getItemLc116Padrao() {

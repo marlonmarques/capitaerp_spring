@@ -1,0 +1,112 @@
+:host {
+    display: block;
+    // padding: 1.5rem;
+}
+
+.field {
+  margin-bottom: 1.25rem;
+}
+
+// Estilização customizada p-tabview para visual premium
+.status-badge-header {
+  padding: 0.35rem 1rem;
+  border-radius: 9999px; font-size: 0.75rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-right: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+
+  &.badge-rascunho   { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  &.badge-processando { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+  &.badge-autorizada  { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+  &.badge-rejeitada   { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+  &.badge-cancelada   { background: #f1f5f9; color: #94a3b8; text-decoration: line-through; border: 1px solid #e2e8f0; }
+}
+
+:host ::ng-deep {
+    .p-tabview .p-tabview-nav {
+        background: transparent;
+        border: none;
+        padding: 0 1rem;
+        
+        li {
+            .p-tabview-nav-link {
+                background: transparent;
+                border: none;
+                color: #64748b;
+                font-weight: 600;
+                transition: all 0.3s;
+                border-bottom: 3px solid transparent;
+                margin-right: 1.5rem;
+                padding: 1.25rem 0.5rem;
+
+                &:not(.p-disabled):focus {
+                    box-shadow: none;
+                }
+            }
+
+            &.p-highlight .p-tabview-nav-link {
+                color: #3b82f6;
+                border-bottom-color: #3b82f6;
+            }
+        }
+    }
+
+    .p-tabview .p-tabview-panels {
+        background: transparent;
+        border: none;
+        padding: 1.25rem 1.5rem; // Reduzido de 2rem
+    }
+
+    // InputNumber styles
+    .p-inputnumber-input {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+
+        &:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 1px #3b82f6;
+        }
+    }
+
+    // AutoComplete styles
+    .p-autocomplete {
+        width: 100%;
+        .p-inputtext {
+            width: 100%;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e1;
+            
+            &:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 1px #3b82f6;
+            }
+        }
+    }
+
+    // Table adjustments
+    .p-datatable.p-datatable-sm .p-datatable-tbody > tr > td {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+.card {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+textarea {
+    resize: none;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    
+    &:focus {
+        border-color: #3b82f6;
+        outline: none;
+        box-shadow: 0 0 0 1px #3b82f6;
+    }
+}

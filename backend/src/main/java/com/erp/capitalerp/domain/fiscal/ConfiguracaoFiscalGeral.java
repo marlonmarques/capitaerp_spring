@@ -12,10 +12,9 @@ import java.math.BigDecimal;
 @Table(name = "config_fiscal_geral")
 public class ConfiguracaoFiscalGeral extends BaseEntity {
 
-    private String tenantIdentifier;
-
     private UUID filialId;
 
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
     private String certificado; // Base64
     private String senhaCertificado;
     private String ambienteServicos = "HOMOLOGACAO";
@@ -27,13 +26,6 @@ public class ConfiguracaoFiscalGeral extends BaseEntity {
     public ConfiguracaoFiscalGeral() {
     }
 
-    public String getTenantIdentifier() {
-        return tenantIdentifier;
-    }
-
-    public void setTenantIdentifier(String tenantIdentifier) {
-        this.tenantIdentifier = tenantIdentifier;
-    }
 
     public UUID getFilialId() {
         return filialId;

@@ -2,6 +2,8 @@ package com.erp.capitalerp.domain.cadastros;
 
 import com.erp.capitalerp.domain.shared.BaseEntity;
 import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -27,6 +29,10 @@ public class Empresa extends BaseEntity {
     private String email;
 
     private String logoUrl;
+
+    @ManyToOne
+    @JoinColumn(name = "plano_id")
+    private Plano plano;
 
     public Empresa() {
     }
@@ -85,5 +91,13 @@ public class Empresa extends BaseEntity {
 
     public void setLogoUrl(String logoUrl) {
         this.logoUrl = logoUrl;
+    }
+
+    public Plano getPlano() {
+        return plano;
+    }
+
+    public void setPlano(Plano plano) {
+        this.plano = plano;
     }
 }

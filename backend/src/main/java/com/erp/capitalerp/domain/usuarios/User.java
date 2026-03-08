@@ -3,6 +3,9 @@ package com.erp.capitalerp.domain.usuarios;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
+
+import com.erp.capitalerp.domain.cadastros.Filial;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -37,6 +40,14 @@ public class User implements UserDetails {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new HashSet<>();
+
+    private java.util.UUID filialId;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "tb_user_filial",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "filial_id"))
+    private Set<Filial> filiais = new HashSet<>();
 
     public User() {
     }
@@ -122,5 +133,41 @@ public class User implements UserDetails {
     @Override
     public String getUsername() {
         return email;
+    }
+
+    public java.util.UUID getFilialId() {
+        return filialId;
+    }
+
+    public void setFilialId(java.util.UUID filialId) {
+        this.filialId = filialId;
+    }
+
+    public Set<Filial> getFiliais() {
+        return filiais;
+    }
+
+    public void setFiliais(Set<Filial> filiais) {
+        this.filiais = filiais;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
     }
 }

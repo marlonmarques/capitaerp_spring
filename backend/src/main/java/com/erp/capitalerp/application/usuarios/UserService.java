@@ -12,8 +12,10 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
 
 import com.erp.capitalerp.domain.shared.ResourceNotFoundExcepiton;
 import com.erp.capitalerp.application.usuarios.dto.RoleDTO;
@@ -25,6 +27,9 @@ import com.erp.capitalerp.domain.usuarios.User;
 import com.erp.capitalerp.projetion.UserDetailsProjection;
 import com.erp.capitalerp.infrastructure.persistence.usuarios.RoleRepository;
 import com.erp.capitalerp.infrastructure.persistence.usuarios.UserRepository;
+import com.erp.capitalerp.application.cadastros.dto.FilialDTO;
+import com.erp.capitalerp.domain.cadastros.Filial;
+import com.erp.capitalerp.infrastructure.persistence.cadastros.FilialRepository;
 import com.erp.capitalerp.domain.shared.DatabaseException;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -41,6 +46,9 @@ public class UserService implements UserDetailsService{
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private FilialRepository filialRepository;
 
 
     @Transactional(readOnly = true)
@@ -71,6 +79,9 @@ public class UserService implements UserDetailsService{
         try {
             User entity = repository.getReferenceById(id);
             copyDtoToEntity(dto, entity);
+            if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+                entity.setPassword(passwordEncoder.encode(dto.getPassword()));
+            }
             entity = repository.save(entity);
             return new UserDTO(entity);
         } catch (EntityNotFoundException e) {
@@ -95,11 +106,18 @@ public class UserService implements UserDetailsService{
         entity.setFirstName(dto.getFirstName());
         entity.setLastName(dto.getLastName());
         entity.setEmail(dto.getEmail());
+        entity.setFilialId(dto.getFilialId());
 
         entity.getRoles().clear();
         for (RoleDTO roleDto : dto.getRoles()) {
             Role role = roleRepository.getReferenceById(roleDto.getId());
             entity.getRoles().add(role);
+        }
+
+        entity.getFiliais().clear();
+        for (FilialDTO fDto : dto.getFiliais()) {
+            Filial filial = filialRepository.getReferenceById(fDto.getId());
+            entity.getFiliais().add(filial);
         }
     }
 
@@ -112,10 +130,51 @@ public class UserService implements UserDetailsService{
         User user = new User();
         user.setEmail(username);
         user.setPassword(result.get(0).getPassword());
+        user.setFilialId(result.get(0).getFilialId());
         for (UserDetailsProjection projection : result) {
             user.addRole(new Role(projection.getRoleId(), projection.getAuthority()));
         }
         return user;
     }
 
+    @Transactional(readOnly = true)
+    public UserDTO getMe() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        System.out.println("DEBUG: Buscando dados do usuário logado (getMe) para o email: " + email);
+        User user = repository.findByEmail(email);
+        if (user == null) {
+            throw new ResourceNotFoundExcepiton("User not found");
+        }
+        return new UserDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public void validarAcessoFilial(UUID filialId) {
+        if (filialId == null) return;
+        
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = repository.findByEmail(email);
+        
+        if (user == null) {
+            throw new RuntimeException("Usuário não autenticado");
+        }
+
+        // Se for ADMIN do tenant, tem acesso total
+        if (user.hasRole("ROLE_ADMIN")) {
+            return;
+        }
+
+        // Se for operador, verifica se a filial está na sua lista de permissões
+        boolean temAcesso = user.getFiliais().stream()
+                .anyMatch(f -> f.getId().equals(filialId));
+        
+        // Também permite se for a sua filial padrão
+        if (!temAcesso && user.getFilialId() != null && user.getFilialId().equals(filialId)) {
+            temAcesso = true;
+        }
+
+        if (!temAcesso) {
+            throw new RuntimeException("Acesso negado à filial " + filialId);
+        }
+    }
 }

@@ -14,7 +14,7 @@ import com.erp.capitalerp.infrastructure.persistence.usuarios.RoleRepository;
 import com.erp.capitalerp.infrastructure.persistence.usuarios.UserRepository;
 
 @Configuration
-@Profile("prod") // Só roda em produção
+@Profile({"dev", "prod"}) // Roda em dev e prod
 public class DataLoader {
 
     @Bean

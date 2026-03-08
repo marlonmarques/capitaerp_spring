@@ -176,7 +176,10 @@ public class AuthorizationServerConfig {
 			List<String> authorities = user.getAuthorities().stream().map(x -> x.getAuthority()).toList();
 			if (context.getTokenType().getValue().equals("access_token")) {
 				// @formatter:off
-				context.getClaims().claim("authorities", authorities).claim("username", user.getUsername());
+				context.getClaims()
+					.claim("authorities", authorities)
+					.claim("username", user.getUsername())
+					.subject(user.getUsername()); // Define o 'sub' como o email do usuário
 				// @formatter:on
 			}
 		};
@@ -198,7 +201,7 @@ public class AuthorizationServerConfig {
 		KeyPair keyPair = generateRsaKey();
 		RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
 		RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
-		return new RSAKey.Builder(publicKey).privateKey(privateKey).keyID(UUID.randomUUID().toString()).build();
+		return new RSAKey.Builder(publicKey).privateKey(privateKey).keyID("capital-erp-dev-key").build();
 	}
 
 	private static KeyPair generateRsaKey() {

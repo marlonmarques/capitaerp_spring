@@ -6,6 +6,7 @@ import com.erp.capitalerp.infrastructure.persistence.nfse.ConfiguracaoNfceReposi
 import com.erp.capitalerp.config.multitenancy.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
 
 @Service
 public class ConfiguracaoNfceService {
@@ -17,17 +18,36 @@ public class ConfiguracaoNfceService {
     }
 
     @Transactional(readOnly = true)
-    public ConfiguracaoNfceDTO buscarConfiguracao() {
+    public ConfiguracaoNfceDTO buscarConfiguracao(UUID filialId) {
         String tenant = TenantContext.getCurrentTenant();
-        ConfiguracaoNfce config = repository.findByTenantIdentifier(tenant).orElseGet(() -> initDefaultConfig(tenant));
+        ConfiguracaoNfce config;
+        
+        if (filialId != null) {
+            config = repository.findByTenantIdentifierAndFilialId(tenant, filialId)
+                    .orElseGet(() -> initDefaultConfig(tenant, filialId));
+        } else {
+            config = repository.findByTenantIdentifier(tenant)
+                    .orElseGet(() -> initDefaultConfig(tenant, null));
+        }
+        
         return toDTO(config);
     }
 
     @Transactional
     public ConfiguracaoNfceDTO salvarConfiguracao(ConfiguracaoNfceDTO dto) {
         String tenant = TenantContext.getCurrentTenant();
-        ConfiguracaoNfce config = repository.findByTenantIdentifier(tenant).orElseGet(() -> initDefaultConfig(tenant));
+        UUID filialId = dto.filialId();
+        
+        ConfiguracaoNfce config;
+        if (filialId != null) {
+            config = repository.findByTenantIdentifierAndFilialId(tenant, filialId)
+                    .orElseGet(() -> initDefaultConfig(tenant, filialId));
+        } else {
+            config = repository.findByTenantIdentifier(tenant)
+                    .orElseGet(() -> initDefaultConfig(tenant, null));
+        }
 
+        config.setFilialId(filialId);
         config.setAtivarNfce(dto.ativarNfce());
         config.setSerie(dto.serie());
         config.setNumeroNfce(dto.numeroNfce());
@@ -46,14 +66,15 @@ public class ConfiguracaoNfceService {
         return toDTO(config);
     }
 
-    private ConfiguracaoNfce initDefaultConfig(String tenant) {
+    private ConfiguracaoNfce initDefaultConfig(String tenant, UUID filialId) {
         ConfiguracaoNfce config = new ConfiguracaoNfce();
         config.setTenantIdentifier(tenant);
+        config.setFilialId(filialId);
         return config;
     }
 
     private ConfiguracaoNfceDTO toDTO(ConfiguracaoNfce config) {
-        return new ConfiguracaoNfceDTO(config.getId(), config.getAtivarNfce(), config.getSerie(),
+        return new ConfiguracaoNfceDTO(config.getId(), config.getFilialId(), config.getAtivarNfce(), config.getSerie(),
                 config.getNumeroNfce(), config.getCategoriaId(), config.getInfoComplementarPadrao(),
                 config.getCfopPadrao(), config.getContaBancariaId(), config.getAmbiente(), config.getEnviarEmail(),
                 config.getAssuntoEmail(), config.getMensagemEmail(), config.getIdCsc(), config.getCsc());

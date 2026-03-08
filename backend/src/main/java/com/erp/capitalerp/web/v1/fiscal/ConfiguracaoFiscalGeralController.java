@@ -18,8 +18,8 @@ public class ConfiguracaoFiscalGeralController {
     }
 
     @GetMapping
-    public ResponseEntity<ConfiguracaoFiscalGeralDTO> buscar() {
-        return ResponseEntity.ok(service.buscarConfiguracao());
+    public ResponseEntity<ConfiguracaoFiscalGeralDTO> buscar(@RequestParam(required = false) java.util.UUID filialId) {
+        return ResponseEntity.ok(service.buscarConfiguracao(filialId));
     }
 
     @PostMapping
@@ -28,7 +28,17 @@ public class ConfiguracaoFiscalGeralController {
     }
 
     @GetMapping("/certificado-info")
-    public ResponseEntity<Map<String, Object>> getCertificadoInfo() {
-        return ResponseEntity.ok(service.getCertificadoInfo());
+    public ResponseEntity<Map<String, Object>> getCertificadoInfo(@RequestParam(required = false) java.util.UUID filialId) {
+        return ResponseEntity.ok(service.getCertificadoInfo(filialId));
+    }
+
+    @PostMapping("/download-certificado/{filialId}")
+    public ResponseEntity<byte[]> downloadCertificado(@PathVariable java.util.UUID filialId, @RequestBody Map<String, String> body) {
+        String senha = body.get("senha");
+        byte[] certData = service.downloadCertificado(filialId, senha);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"certificado.pfx\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(certData);
     }
 }

@@ -2,13 +2,19 @@ package com.erp.capitalerp.application.nfse;
 
 import com.erp.capitalerp.application.nfse.dto.NotaFiscalServicoDTO;
 import com.erp.capitalerp.domain.clientes.Cliente;
+import com.erp.capitalerp.config.multitenancy.FilialContext;
+import com.erp.capitalerp.config.multitenancy.TenantContext;
+import com.erp.capitalerp.domain.cadastros.Filial;
 import com.erp.capitalerp.domain.nfse.FilaEmissaoNfse;
 import com.erp.capitalerp.domain.nfse.NotaFiscalServico;
 import com.erp.capitalerp.domain.nfse.StatusFila;
 import com.erp.capitalerp.domain.nfse.StatusNFSe;
+import com.erp.capitalerp.domain.usuarios.User;
+import com.erp.capitalerp.infrastructure.persistence.cadastros.FilialRepository;
 import com.erp.capitalerp.infrastructure.persistence.clientes.ClienteRepository;
 import com.erp.capitalerp.infrastructure.persistence.nfse.FilaEmissaoRepository;
 import com.erp.capitalerp.infrastructure.persistence.nfse.NotaFiscalServicoRepository;
+import com.erp.capitalerp.infrastructure.persistence.usuarios.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,19 +45,32 @@ public class NotaFiscalServicoService {
     private final ClienteRepository clienteRepository;
     private final AcbrNFSeService acbrService;
     private final FilaEmissaoRepository filaRepository;
+    private final UserRepository userRepository;
+    private final FilialRepository filialRepository;
+    private final com.erp.capitalerp.application.usuarios.UserService userService;
 
     public NotaFiscalServicoService(NotaFiscalServicoRepository repository, ClienteRepository clienteRepository,
-            AcbrNFSeService acbrService, FilaEmissaoRepository filaRepository) {
+            AcbrNFSeService acbrService, FilaEmissaoRepository filaRepository, UserRepository userRepository,
+            FilialRepository filialRepository, com.erp.capitalerp.application.usuarios.UserService userService) {
         this.repository = repository;
         this.clienteRepository = clienteRepository;
         this.acbrService = acbrService;
         this.filaRepository = filaRepository;
+        this.userRepository = userRepository;
+        this.filialRepository = filialRepository;
+        this.userService = userService;
     }
 
     // ─── CRUD ─────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public Page<NotaFiscalServicoDTO> listar(String busca, String status, Pageable pageable) {
+        String tenant = TenantContext.getCurrentTenant();
+        java.util.UUID filialAtiva = FilialContext.getCurrentFilial();
+
+        // Blindagem: valida se o usuário pode acessar a filial solicitada no context
+        userService.validarAcessoFilial(filialAtiva);
+
         StatusNFSe statusEnum = null;
         if (status != null && !status.isBlank()) {
             try {
@@ -59,7 +78,7 @@ public class NotaFiscalServicoService {
             } catch (Exception ignored) {
             }
         }
-        return repository.buscar(busca, statusEnum, pageable).map(NotaFiscalServicoDTO::new);
+        return repository.buscar(busca, statusEnum, tenant, filialAtiva, pageable).map(NotaFiscalServicoDTO::new);
     }
 
     @Transactional(readOnly = true)
@@ -68,9 +87,10 @@ public class NotaFiscalServicoService {
     }
 
     public NotaFiscalServicoDTO salvar(NotaFiscalServicoDTO dto) {
+        String tenant = TenantContext.getCurrentTenant();
         NotaFiscalServico nota = new NotaFiscalServico();
         preencherDados(nota, dto);
-        nota.setNumeroRps(gerarProximoRps());
+        nota.setNumeroRps(gerarProximoRps(tenant));
         nota.setStatus(StatusNFSe.RASCUNHO);
         nota.recalcularValores();
         return new NotaFiscalServicoDTO(repository.save(nota));
@@ -187,6 +207,53 @@ public class NotaFiscalServicoService {
     }
 
     private void preencherDados(NotaFiscalServico nota, NotaFiscalServicoDTO dto) {
+        String tenant = TenantContext.getCurrentTenant();
+        nota.setTenantIdentifier(tenant);
+
+        // Se a nota é nova e não tem filial vinculada
+        if (nota.getFilialId() == null) {
+            // 1. Tenta pegar a filial ativa do contexto (troca rápida no frontend)
+            java.util.UUID activeFilial = FilialContext.getCurrentFilial();
+            if (activeFilial != null) {
+                // Blindagem: valida se o usuário pode operar nesta filial
+                userService.validarAcessoFilial(activeFilial);
+                nota.setFilialId(activeFilial);
+            } else {
+                // 2. Fallback: herdar da filial padrão do usuário logado
+                String email = obterUsuarioAtual();
+                User user = userRepository.findByEmail(email);
+                if (user != null && user.getFilialId() != null) {
+                    nota.setFilialId(user.getFilialId());
+                }
+            }
+        }
+
+        // Se temos uma filial vinculada, buscamos dados dela para preencher UF e IBGE
+        // se nulos
+        if (nota.getFilialId() != null) {
+            filialRepository.findByIdAndTenantIdentifier(nota.getFilialId(), tenant).ifPresent(filial -> {
+                if (dto.ufPrestacao() == null) {
+                    nota.setUfPrestacao(filial.getEstado());
+                } else {
+                    nota.setUfPrestacao(dto.ufPrestacao());
+                }
+
+                if (dto.municipioIbge() == null) {
+                    nota.setMunicipioIbge(filial.getIbge());
+                } else {
+                    nota.setMunicipioIbge(dto.municipioIbge());
+                }
+            });
+        }
+
+        // Fallback para valores do DTO ou padrão caso não haja filial/dados
+        if (nota.getUfPrestacao() == null) {
+            nota.setUfPrestacao(dto.ufPrestacao() != null ? dto.ufPrestacao() : "DF");
+        }
+        if (nota.getMunicipioIbge() == null) {
+            nota.setMunicipioIbge(dto.municipioIbge());
+        }
+
         // Tomador
         if (dto.clienteId() != null) {
             Cliente cliente = clienteRepository.findById(dto.clienteId())
@@ -202,8 +269,7 @@ public class NotaFiscalServicoService {
         nota.setCodigoCnae(dto.codigoCnae());
         nota.setItemLc116(dto.itemLc116());
         nota.setCodigoNbs(dto.codigoNbs());
-        nota.setMunicipioIbge(dto.municipioIbge());
-        nota.setUfPrestacao(dto.ufPrestacao() != null ? dto.ufPrestacao() : "DF");
+
         nota.setExigibilidadeIss(dto.exigibilidadeIss() != null ? dto.exigibilidadeIss() : 1);
         nota.setIssRetido(Boolean.TRUE.equals(dto.issRetido()));
 
@@ -218,13 +284,15 @@ public class NotaFiscalServicoService {
         nota.setAliquotaIss(dto.aliquotaIss() != null ? dto.aliquotaIss() : new BigDecimal("2.00"));
     }
 
-    private Integer gerarProximoRps() {
-        Integer max = repository.findMaxNumeroRps();
+    private Integer gerarProximoRps(String tenant) {
+        Integer max = repository.findMaxNumeroRps(tenant);
         return (max != null ? max : 0) + 1;
     }
 
     private NotaFiscalServico findOrThrow(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new EntityNotFoundException("NFS-e não encontrada: " + id));
+        String tenant = TenantContext.getCurrentTenant();
+        return repository.findByIdFull(id, tenant)
+                .orElseThrow(() -> new EntityNotFoundException("NFS-e não encontrada: " + id));
     }
 
     private String obterUsuarioAtual() {

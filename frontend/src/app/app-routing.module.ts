@@ -80,6 +80,21 @@ const routes: Routes = [
         data: { roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'] }
       },
       {
+        path: 'filiais',
+        loadComponent: () => import('./pages/filiais/filiais.component').then(m => m.FiliaisComponent),
+        data: { roles: ['ROLE_ADMIN', 'ROLE_OPERATOR'] }
+      },
+      {
+        path: 'filiais/new',
+        loadComponent: () => import('./pages/filiais/filial-form.component').then(m => m.FilialFormComponent),
+        data: { roles: ['ROLE_ADMIN', 'ROLE_OPERATOR'] }
+      },
+      {
+        path: 'filiais/:id/edit',
+        loadComponent: () => import('./pages/filiais/filial-form.component').then(m => m.FilialFormComponent),
+        data: { roles: ['ROLE_ADMIN', 'ROLE_OPERATOR'] }
+      },
+      {
         path: 'contabilidade/nfse',
         loadComponent: () => import('./pages/nfse/nfse-list.component').then(m => m.NfseListComponent),
         data: { roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'] }
@@ -97,6 +112,21 @@ const routes: Routes = [
       {
         path: 'contabilidade/nfse/:id/editar',
         loadComponent: () => import('./pages/nfse/nfse-form.component').then(m => m.NfseFormComponent),
+        data: { roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'] }
+      },
+      {
+        path: 'contabilidade/nfe',
+        loadComponent: () => import('./pages/nfe/nfe-list/nfe-list.component').then(m => m.NfeListComponent),
+        data: { roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'] }
+      },
+      {
+        path: 'contabilidade/nfe/nova',
+        loadComponent: () => import('./pages/nfe/nfe-form/nfe-form.component').then(m => m.NfeFormComponent),
+        data: { roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'] }
+      },
+      {
+        path: 'contabilidade/nfe/editar/:id',
+        loadComponent: () => import('./pages/nfe/nfe-form/nfe-form.component').then(m => m.NfeFormComponent),
         data: { roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'] }
       },
       {
@@ -121,6 +151,21 @@ const routes: Routes = [
         path: 'users',
         loadComponent: () => import('./pages/users/users.component').then(m => m.UsersComponent),
         data: { roles: ['ROLE_ADMIN'] }
+      },
+      {
+        path: 'users/new',
+        loadComponent: () => import('./pages/users/user-form.component').then(m => m.UserFormComponent),
+        data: { roles: ['ROLE_ADMIN'] }
+      },
+      {
+        path: 'users/:id/edit',
+        loadComponent: () => import('./pages/users/user-form.component').then(m => m.UserFormComponent),
+        data: { roles: ['ROLE_ADMIN'] }
+      },
+      {
+        path: 'audit',
+        loadComponent: () => import('./pages/audit/audit.component').then(m => m.AuditComponent),
+        data: { roles: ['ROLE_ADMIN', 'ROLE_OPERATOR'] }
       },
       {
         path: 'servicos',

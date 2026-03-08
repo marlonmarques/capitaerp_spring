@@ -8,7 +8,11 @@ import com.erp.capitalerp.domain.clientes.Cliente;
 @Repository
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
-    boolean existsByCpf(String cpf);
+    java.util.List<Cliente> findByTenantIdentifier(String tenantIdentifier);
 
-    boolean existsByCpfAndIdNot(String cpf, Long id);
+    java.util.Optional<Cliente> findByIdAndTenantIdentifier(Long id, String tenantIdentifier);
+
+    boolean existsByCpfAndTenantIdentifier(String cpf, String tenantIdentifier);
+
+    boolean existsByCpfAndIdNotAndTenantIdentifier(String cpf, Long id, String tenantIdentifier);
 }

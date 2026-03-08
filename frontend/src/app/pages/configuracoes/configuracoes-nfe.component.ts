@@ -17,6 +17,11 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 import { ContaBancariaService, ContaBancaria } from '../../core/services/financeiro/conta-bancaria.service';
 import { CategoriaService, Categoria } from '../../core/services/cadastros/categoria.service';
 import { FiscalDataService, BuscaFiscalResultDTO } from '../../core/services/fiscal-data.service';
+import { FilialService } from '../../core/services/filial.service';
+import { Filial } from '../../core/models/filial.model';
+import { MenuRefreshService } from '../../core/services/menu-refresh.service';
+
+import { ButtonModule } from 'primeng/button';
 
 @Component({
     selector: 'app-configuracoes-nfe',
@@ -30,17 +35,20 @@ import { FiscalDataService, BuscaFiscalResultDTO } from '../../core/services/fis
         MatTabsModule,
         InputNumberModule,
         NgxMaskDirective,
-        MatAutocompleteModule
+        MatAutocompleteModule,
+        ButtonModule
     ],
     templateUrl: './configuracoes-nfe.component.html'
 })
 export class ConfiguracoesNfeComponent implements OnInit {
+    private menuRefresh = inject(MenuRefreshService);
     private fb = inject(FormBuilder);
     private configService = inject(ConfiguracaoNfeService);
     private notification = inject(NotificationService);
     private fiscalDataService = inject(FiscalDataService);
     private contaBancariaService = inject(ContaBancariaService);
     private categoriaService = inject(CategoriaService);
+    private filialService = inject(FilialService);
 
     configForm!: FormGroup;
     isLoading = false;
@@ -48,6 +56,7 @@ export class ConfiguracoesNfeComponent implements OnInit {
 
     contasBancarias: ContaBancaria[] = [];
     categorias: Categoria[] = [];
+    filiais: Filial[] = [];
 
     cfops: BuscaFiscalResultDTO[] = [];
     cfopSearchCtrl = new FormControl<string | BuscaFiscalResultDTO | null>('');
@@ -55,12 +64,13 @@ export class ConfiguracoesNfeComponent implements OnInit {
     ngOnInit(): void {
         this.initForm();
         this.carregarListasDaBase();
-        this.carregarConfiguracoes();
+        this.carregarFiliaisEConfiguracoes();
     }
 
     private initForm(): void {
         this.configForm = this.fb.group({
             id: [null],
+            filialId: [null, Validators.required],
             ativarNfe: [false],
             serie: [1, Validators.required],
             numeroNfe: [1, Validators.required],
@@ -91,6 +101,13 @@ export class ConfiguracoesNfeComponent implements OnInit {
                 return [];
             })
         ).subscribe(data => this.cfops = data);
+
+        // Monitorar troca de filial
+        this.configForm.get('filialId')?.valueChanges.subscribe(filialId => {
+            if (filialId && !this.isLoading) {
+                this.carregarConfiguracoes(filialId);
+            }
+        });
     }
 
     displayFiscal(item: BuscaFiscalResultDTO | null | undefined): string {
@@ -123,12 +140,38 @@ export class ConfiguracoesNfeComponent implements OnInit {
         });
     }
 
-    private carregarConfiguracoes(): void {
+    private carregarFiliaisEConfiguracoes(): void {
         this.isLoading = true;
-        this.configService.getConfiguracao().subscribe({
+        this.filialService.listarTodas().subscribe({
+            next: (filiais) => {
+                this.filiais = filiais;
+                const defaultFilial = filiais.length > 0 ? filiais[0].id : null;
+                if (defaultFilial) {
+                    this.configForm.get('filialId')?.setValue(defaultFilial, { emitEvent: false });
+                    this.carregarConfiguracoes(defaultFilial as string);
+                } else {
+                    this.isLoading = false;
+                }
+            },
+            error: () => {
+                this.notification.error('Erro ao carregar filiais.');
+                this.isLoading = false;
+            }
+        });
+    }
+
+    private carregarConfiguracoes(filialId?: string): void {
+        this.isLoading = true;
+        this.configService.getConfiguracao(filialId).subscribe({
             next: (config) => {
-                if (config) {
-                    this.configForm.patchValue(config);
+                // Reset search controllers
+                this.cfopSearchCtrl.setValue('', { emitEvent: false });
+
+                if (config && config.id) {
+                    this.configForm.patchValue({
+                        ...config,
+                        filialId: config.filialId || filialId
+                    });
                     if (config.cfopPadrao) {
                         this.fiscalDataService.searchCfops(config.cfopPadrao).subscribe(res => {
                             const found = res.find(c => c.id === config.cfopPadrao);
@@ -163,6 +206,7 @@ export class ConfiguracoesNfeComponent implements OnInit {
                 this.notification.success('Configurações da NF-e salvas com sucesso!');
                 this.configForm.patchValue(res);
                 this.isSaving = false;
+                this.menuRefresh.emitirRefresh();
             },
             error: (err) => {
                 this.notification.error('Erro ao salvar as configurações.');

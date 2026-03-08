@@ -1,10 +1,11 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 
 export interface ConfiguracaoNfce {
     id?: string;
+    filialId?: string;
     ativarNfce: boolean;
     serie: number;
     numeroNfce: number;
@@ -27,8 +28,10 @@ export class ConfiguracaoNfceService {
     private http = inject(HttpClient);
     private apiUrl = `${environment.apiUrl}/api/v1/configuracao-nfce`;
 
-    getConfiguracao(): Observable<ConfiguracaoNfce> {
-        return this.http.get<ConfiguracaoNfce>(this.apiUrl);
+    getConfiguracao(filialId?: string): Observable<ConfiguracaoNfce> {
+        let params = new HttpParams();
+        if (filialId) params = params.set('filialId', filialId);
+        return this.http.get<ConfiguracaoNfce>(this.apiUrl, { params });
     }
 
     salvarConfiguracao(config: ConfiguracaoNfce): Observable<ConfiguracaoNfce> {

@@ -8,27 +8,37 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface NotaFiscalServicoRepository extends JpaRepository<NotaFiscalServico, UUID> {
 
-    Page<NotaFiscalServico> findByStatusOrderByCriadoEmDesc(StatusNFSe status, Pageable pageable);
+        /**
+         * NOVO: Carrega a NFS-e com seus relacionamentos em uma única sessão. Evita
+         * erro 500 no carregamento do formulário de serviço.
+         */
+        @Query("SELECT n FROM NotaFiscalServico n " + "LEFT JOIN FETCH n.cliente "
+        // + "LEFT JOIN FETCH n.pagamentos "
+                        + "WHERE n.id = :id AND n.tenantIdentifier = :tenant")
+        Optional<NotaFiscalServico> findByIdFull(@Param("id") UUID id, @Param("tenant") String tenant);
 
-    @Query("SELECT n FROM NotaFiscalServico n WHERE "
-            + "(:busca IS NULL OR LOWER(n.discriminacaoServico) LIKE LOWER(CONCAT('%',:busca,'%')) "
-            + "OR CAST(n.numeroRps AS string) LIKE CONCAT('%',:busca,'%') "
-            + "OR n.numeroNfse LIKE CONCAT('%',:busca,'%')) " + "AND (:status IS NULL OR n.status = :status) "
-            + "ORDER BY n.criadoEm DESC")
-    Page<NotaFiscalServico> buscar(@Param("busca") String busca, @Param("status") StatusNFSe status, Pageable pageable);
+        Page<NotaFiscalServico> findByStatusOrderByCriadoEmDesc(StatusNFSe status, Pageable pageable);
 
-    Optional<NotaFiscalServico> findByNumeroRps(Integer numeroRps);
+        @Query("SELECT n FROM NotaFiscalServico n WHERE " + "n.tenantIdentifier = :tenant AND "
+                        + "(:filial IS NULL OR n.filialId = :filial) AND "
+                        + "(:busca IS NULL OR LOWER(n.discriminacaoServico) LIKE LOWER(CONCAT('%',:busca,'%')) "
+                        + "OR CAST(n.numeroRps AS string) LIKE CONCAT('%',:busca,'%') "
+                        + "OR n.numeroNfse LIKE CONCAT('%',:busca,'%')) "
+                        + "AND (:status IS NULL OR n.status = :status) " + "ORDER BY n.criadoEm DESC")
+        Page<NotaFiscalServico> buscar(@Param("busca") String busca, @Param("status") StatusNFSe status,
+                        @Param("tenant") String tenant, @Param("filial") UUID filial, Pageable pageable);
 
-    Optional<NotaFiscalServico> findByNumeroNfse(String numeroNfse);
+        Optional<NotaFiscalServico> findByNumeroRpsAndTenantIdentifier(Integer numeroRps, String tenant);
 
-    List<NotaFiscalServico> findByStatusIn(List<StatusNFSe> statuses);
+        Optional<NotaFiscalServico> findByNumeroNfseAndTenantIdentifier(String numeroNfse, String tenant);
 
-    @Query("SELECT COALESCE(MAX(n.numeroRps), 0) FROM NotaFiscalServico n")
-    Integer findMaxNumeroRps();
+        Optional<NotaFiscalServico> findByIdAndTenantIdentifier(UUID id, String tenant);
+
+        @Query("SELECT COALESCE(MAX(n.numeroRps), 0) FROM NotaFiscalServico n WHERE n.tenantIdentifier = :tenant")
+        Integer findMaxNumeroRps(@Param("tenant") String tenant);
 }

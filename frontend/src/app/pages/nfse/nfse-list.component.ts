@@ -115,7 +115,7 @@ import { NfseEmissaoStatusComponent } from './nfse-emissao-status.component';
                   <td class="text-sm">{{ formatarData(nota.dataEmissao) }}</td>
                   <td class="discriminacao-cell">{{ truncar(nota.discriminacaoServico, 60) }}</td>
                   <td class="text-right font-bold">
-                    {{ nota.valorServicos | currency: 'BRL' : 'symbol' : '1.2-2' : 'pt-BR' }}
+                    {{ nota.valorServicos | currency: 'BRL' }}
                   </td>
                   <td class="text-center">
                     <span class="status-badge status-{{ nota.status?.toLowerCase() }}">

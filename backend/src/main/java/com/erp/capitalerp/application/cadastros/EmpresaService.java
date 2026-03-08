@@ -3,6 +3,7 @@ package com.erp.capitalerp.application.cadastros;
 import com.erp.capitalerp.application.cadastros.dto.EmpresaDTO;
 import com.erp.capitalerp.domain.cadastros.Empresa;
 import com.erp.capitalerp.infrastructure.persistence.cadastros.EmpresaRepository;
+import com.erp.capitalerp.infrastructure.persistence.cadastros.PlanoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,9 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class EmpresaService {
 
     private final EmpresaRepository repository;
+    private final PlanoRepository planoRepository;
 
-    public EmpresaService(EmpresaRepository repository) {
+    public EmpresaService(EmpresaRepository repository, PlanoRepository planoRepository) {
         this.repository = repository;
+        this.planoRepository = planoRepository;
     }
 
     @Transactional(readOnly = true)
@@ -38,6 +41,11 @@ public class EmpresaService {
         // A logo pode ser alterada via URL, ou você pode ter um endpoint separado de
         // Upload de Arquivo
         empresa.setLogoUrl(dto.logoUrl());
+
+        if (dto.planoId() != null) {
+            empresa.setPlano(planoRepository.findById(dto.planoId())
+                    .orElseThrow(() -> new RuntimeException("Plano não encontrado")));
+        }
 
         empresa = repository.save(empresa);
         return new EmpresaDTO(empresa);

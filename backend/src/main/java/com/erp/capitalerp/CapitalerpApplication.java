@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(exclude = { DataSourceAutoConfiguration.class })
 @EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 public class CapitalerpApplication {
 
 	public static void main(String[] args) {

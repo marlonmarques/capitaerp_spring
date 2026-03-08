@@ -4,6 +4,7 @@ package com.erp.capitalerp.application.usuarios.dto;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.erp.capitalerp.application.cadastros.dto.FilialDTO;
 import com.erp.capitalerp.domain.usuarios.User;
 
 import jakarta.validation.constraints.Email;
@@ -21,15 +22,27 @@ public class UserDTO {
     private String email;
 
     Set<RoleDTO> roles = new HashSet<>();
+    private java.util.UUID filialId;
+    Set<FilialDTO> filiais = new HashSet<>();
+    private String password;
 
     public UserDTO() {
     }
 
-    public UserDTO(Long id, String firstName, String lastName, String email) {
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public UserDTO(Long id, String firstName, String lastName, String email, java.util.UUID filialId) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
+        this.filialId = filialId;
     }
 
     public UserDTO(User x) {
@@ -37,7 +50,9 @@ public class UserDTO {
         firstName = x.getFirstName();
         lastName = x.getLastName();
         email = x.getEmail();
+        filialId = x.getFilialId();
         x.getRoles().forEach(role -> this.roles.add(new RoleDTO(role)));
+        x.getFiliais().forEach(f -> this.filiais.add(new FilialDTO(f)));
     }
 
     public Long getId() {
@@ -78,6 +93,22 @@ public class UserDTO {
 
     public void setRoles(Set<RoleDTO> roles) {
         this.roles = roles;
+    }
+
+    public java.util.UUID getFilialId() {
+        return filialId;
+    }
+
+    public void setFilialId(java.util.UUID filialId) {
+        this.filialId = filialId;
+    }
+
+    public Set<FilialDTO> getFiliais() {
+        return filiais;
+    }
+
+    public void setFiliais(Set<FilialDTO> filiais) {
+        this.filiais = filiais;
     }
 
 }

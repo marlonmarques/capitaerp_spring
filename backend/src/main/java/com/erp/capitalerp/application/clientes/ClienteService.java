@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.erp.capitalerp.config.multitenancy.TenantContext;
 import com.erp.capitalerp.application.clientes.dto.ClienteDTO;
 import com.erp.capitalerp.domain.clientes.Cliente;
 import com.erp.capitalerp.infrastructure.persistence.clientes.ClienteRepository;
@@ -37,14 +38,16 @@ public class ClienteService {
 
     @Transactional
     public ClienteDTO insert(ClienteDTO dto) {
+        String tenant = TenantContext.getCurrentTenant();
         if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
-            if (repository.existsByCpf(dto.getCpf())) {
+            if (repository.existsByCpfAndTenantIdentifier(dto.getCpf(), tenant)) {
                 throw new DatabaseException("O CPF/CNPJ informado já está cadastrado em outro cliente.");
             }
         }
 
         Cliente entity = new Cliente();
         copyDtoToEntity(dto, entity);
+        entity.setTenantIdentifier(tenant);
         entity = repository.save(entity);
 
         return new ClienteDTO(entity);
@@ -52,8 +55,9 @@ public class ClienteService {
 
     @Transactional
     public ClienteDTO update(Long id, ClienteDTO dto) {
+        String tenant = TenantContext.getCurrentTenant();
         if (dto.getCpf() != null && !dto.getCpf().trim().isEmpty()) {
-            if (repository.existsByCpfAndIdNot(dto.getCpf(), id)) {
+            if (repository.existsByCpfAndIdNotAndTenantIdentifier(dto.getCpf(), id, tenant)) {
                 throw new DatabaseException("O CPF/CNPJ informado já está cadastrado em outro cliente.");
             }
         }

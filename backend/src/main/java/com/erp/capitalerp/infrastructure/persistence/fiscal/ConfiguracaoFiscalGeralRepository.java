@@ -9,5 +9,6 @@ import java.util.UUID;
 
 @Repository
 public interface ConfiguracaoFiscalGeralRepository extends JpaRepository<ConfiguracaoFiscalGeral, UUID> {
+    Optional<ConfiguracaoFiscalGeral> findByTenantIdentifierAndFilialId(String tenantIdentifier, UUID filialId);
     Optional<ConfiguracaoFiscalGeral> findByTenantIdentifier(String tenantIdentifier);
 }

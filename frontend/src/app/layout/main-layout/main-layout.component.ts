@@ -5,10 +5,19 @@ import { CommonModule } from '@angular/common';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ToastModule } from 'primeng/toast';
+import { ConfirmationService, MessageService } from 'primeng/api';
+import { MenuRefreshService } from '../../core/services/menu-refresh.service';
 
 import { AuthService } from '../../core/services/auth.service';
 import { User } from '../../core/auth/models/user.model';
 import { EmpresaService } from '../../core/services/empresa.service';
+import { ConfiguracaoNfseService } from '../../core/services/configuracoes/configuracao-nfse.service';
+import { ConfiguracaoNfeService } from '../../core/services/configuracoes/configuracao-nfe.service';
+import { ConfiguracaoNfceService } from '../../core/services/configuracoes/configuracao-nfce.service';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
 
 interface MenuItem {
   label: string;
@@ -17,19 +26,33 @@ interface MenuItem {
   roles?: string[];
   expanded?: boolean;
   children?: MenuItem[];
+  showIfConfig?: 'nfse' | 'nfe' | 'nfce';
 }
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatMenuModule, MatButtonModule, MatIconModule],
+  imports: [ConfirmDialogModule, ToastModule, CommonModule, RouterModule, MatMenuModule, MatButtonModule, MatIconModule],
   templateUrl: './main-layout.component.html',
-  styleUrls: ['./main-layout.component.scss']
+  styleUrls: ['./main-layout.component.scss'],
+  providers: [ConfirmationService, MessageService],
 })
 export class MainLayoutComponent implements OnInit {
   private router = inject(Router);
+  private confirmationService = inject(ConfirmationService);
   public authService = inject(AuthService);
   public empresaService = inject(EmpresaService);
+  private configNfseService = inject(ConfiguracaoNfseService);
+  private configNfeService = inject(ConfiguracaoNfeService);
+  private configNfceService = inject(ConfiguracaoNfceService);
+  private menuRefresh = inject(MenuRefreshService);
+  private destroy$ = new Subject<void>();
+
+  private configsHabilitadas = {
+    nfse: false,
+    nfe: false,
+    nfce: false
+  };
 
   isCollapsed = false;
   loading = false;
@@ -86,6 +109,12 @@ export class MainLayoutComponent implements OnInit {
           icon: 'pi pi-briefcase',
           link: '/servicos',
           roles: ['ROLE_OPERATOR', 'ROLE_ADMIN']
+        },
+        {
+          label: 'Filiais e Caixas',
+          icon: 'pi pi-sitemap',
+          link: '/filiais',
+          roles: ['ROLE_OPERATOR', 'ROLE_ADMIN']
         }
       ]
     },
@@ -119,7 +148,15 @@ export class MainLayoutComponent implements OnInit {
           label: 'Fatura NFS-e (Serviços)',
           icon: 'pi pi-file-check',
           link: '/contabilidade/nfse',
-          roles: ['ROLE_OPERATOR', 'ROLE_ADMIN']
+          roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'],
+          showIfConfig: 'nfse'
+        },
+        {
+          label: 'Fatura NFe (Produtos)',
+          icon: 'pi pi-shopping-cart',
+          link: '/contabilidade/nfe',
+          roles: ['ROLE_OPERATOR', 'ROLE_ADMIN'],
+          showIfConfig: 'nfe'
         }
       ]
     },
@@ -148,6 +185,12 @@ export class MainLayoutComponent implements OnInit {
           icon: 'pi pi-users',
           link: '/users',
           roles: ['ROLE_ADMIN']
+        },
+        {
+          label: 'Auditoria Técnica',
+          icon: 'pi pi-shield',
+          link: '/audit',
+          roles: ['ROLE_ADMIN', 'ROLE_OPERATOR']
         },
         {
           label: 'Configurações',
@@ -188,14 +231,34 @@ export class MainLayoutComponent implements OnInit {
   toggleSubmenu(item: MenuItem): void {
     if (this.isCollapsed) {
       this.isCollapsed = false;
+      item.expanded = true;
+      return;
     }
-    // Accordion behavior: close all other items in the filtered menu list
+
     const wasExpanded = item.expanded;
+    // Accordion: Opcional, se quiser que apenas um abra por vez, mantenha a linha abaixo
     this.filteredMenuItems.forEach(m => m.expanded = false);
 
     if (item.children) {
       item.expanded = !wasExpanded;
     }
+  }
+
+  isParentActive(item: MenuItem): boolean {
+    if (!item.children) return false;
+    return item.children.some(child => child.link && this.router.url.includes(child.link));
+  }
+
+  private autoExpandMenu(): void {
+    const url = this.router.url;
+    this.filteredMenuItems.forEach(item => {
+      if (item.children) {
+        const hasActiveChild = item.children.some(child => child.link && url.includes(child.link));
+        if (hasActiveChild) {
+          item.expanded = true;
+        }
+      }
+    });
   }
 
   closeAllSubmenus(): void {
@@ -215,6 +278,32 @@ export class MainLayoutComponent implements OnInit {
     this.setupUser();
     this.carregarLogo();
     this.loadTheme();
+    this.carregarConfiguracoesHabilitadas();
+
+    // Auto expandir no carregamento inicial
+    setTimeout(() => this.autoExpandMenu(), 500);
+
+    this.menuRefresh.refresh$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.carregarConfiguracoesHabilitadas());
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private carregarConfiguracoesHabilitadas(): void {
+    forkJoin({
+      nfse: this.configNfseService.getConfiguracao().pipe(catchError(() => of({ ativarNfse: false }))),
+      nfe: this.configNfeService.getConfiguracao().pipe(catchError(() => of({ ativarNfe: false }))),
+      nfce: this.configNfceService.getConfiguracao().pipe(catchError(() => of({ ativarNfce: false })))
+    }).subscribe(res => {
+      this.configsHabilitadas.nfse = !!(res.nfse as any).ativarNfse;
+      this.configsHabilitadas.nfe = !!(res.nfe as any).ativarNfe;
+      this.configsHabilitadas.nfce = !!(res.nfce as any).ativarNfce;
+      this.buildMenu();
+    });
   }
 
   toggleTheme(): void {
@@ -248,6 +337,7 @@ export class MainLayoutComponent implements OnInit {
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
         this.updateBreadcrumb();
+        this.autoExpandMenu();
       });
   }
 
@@ -261,21 +351,33 @@ export class MainLayoutComponent implements OnInit {
   private buildMenu(): void {
     this.filteredMenuItems = this.menuItems
       .filter(item => {
-        if (!item.roles) return true;
-        return this.authService.hasAnyRole(item.roles);
+        // 1. Verificar Permissões (Roles)
+        if (item.roles && !this.authService.hasAnyRole(item.roles)) return false;
+
+        // 2. Verificar Feature Toggle (Configurações)
+        if (item.showIfConfig && !this.configsHabilitadas[item.showIfConfig]) return false;
+
+        return true;
       })
       .map(item => {
         if (item.children) {
-          return {
-            ...item,
-            children: item.children.filter(child => {
-              if (!child.roles) return true;
-              return this.authService.hasAnyRole(child.roles);
-            })
-          };
+          const filteredChildren = item.children.filter(child => {
+            // 1. Verificar Roles
+            if (child.roles && !this.authService.hasAnyRole(child.roles)) return false;
+
+            // 2. Verificar Feature Toggle
+            if (child.showIfConfig && !this.configsHabilitadas[child.showIfConfig]) return false;
+
+            return true;
+          });
+
+          // Oculta o menu pai inteiro se ele tiver filhos marcados com feature toggle e nenhum estiver ativo
+          // (Opcional, mas limpa o sidebar se o grupo ficar vazio)
+          return { ...item, children: filteredChildren };
         }
         return item;
-      });
+      })
+      .filter(item => !item.children || item.children.length > 0); // Remove grupos vazios
   }
 
   private updateBreadcrumb(): void {
@@ -300,6 +402,12 @@ export class MainLayoutComponent implements OnInit {
         { label: 'Dashboard', link: '/dashboard' },
         { label: 'Sistema' },
         { label: 'Usuários', link: '/users' }
+      ];
+    } else if (url.includes('/audit')) {
+      this.breadcrumbItems = [
+        { label: 'Dashboard', link: '/dashboard' },
+        { label: 'Sistema' },
+        { label: 'Auditoria', link: '/audit' }
       ];
     } else if (url.includes('/servicos')) {
       this.breadcrumbItems = [
@@ -375,12 +483,47 @@ export class MainLayoutComponent implements OnInit {
         { label: 'Contabilidade' },
         { label: 'Fatura NFS-e', link: '/contabilidade/nfse' }
       ];
+    } else if (url.includes('/contabilidade/nfe/nova')) {
+      this.breadcrumbItems = [
+        { label: 'Dashboard', link: '/dashboard' },
+        { label: 'Contabilidade' },
+        { label: 'Fatura NFe', link: '/contabilidade/nfe' },
+        { label: 'Criar Nota' }
+      ];
+    } else if (url.includes('/contabilidade/nfe/editar')) {
+      this.breadcrumbItems = [
+        { label: 'Dashboard', link: '/dashboard' },
+        { label: 'Contabilidade' },
+        { label: 'Fatura NFe', link: '/contabilidade/nfe' },
+        { label: 'Editar Nota' }
+      ];
+    } else if (url.includes('/contabilidade/nfe')) {
+      this.breadcrumbItems = [
+        { label: 'Dashboard', link: '/dashboard' },
+        { label: 'Contabilidade' },
+        { label: 'Fatura NFe', link: '/contabilidade/nfe' }
+      ];
     } else {
       this.breadcrumbItems = [{ label: 'Dashboard', link: '/dashboard' }];
     }
   }
 
   logout(): void {
-    this.authService.logout();
+    this.confirmationService.confirm({
+      header: 'Confirmação',
+      message: 'Deseja realmente sair do sistema?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sim, sair',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        // Ação executada se o usuário confirmar
+        this.authService.logout();
+      },
+      reject: () => {
+        // Opcional: ação se o usuário cancelar
+        console.log('Logout cancelado');
+      }
+    });
   }
 }

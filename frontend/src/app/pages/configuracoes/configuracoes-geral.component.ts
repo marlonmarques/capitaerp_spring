@@ -14,6 +14,11 @@ import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
 import { ConfiguracaoFiscalGeralService, ConfiguracaoFiscalGeral, CertificadoInfo } from '../../core/services/configuracoes/configuracao-fiscal-geral.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { FiscalDataService, BuscaFiscalResultDTO } from '../../core/services/fiscal-data.service';
+import { FilialService } from '../../core/services/filial.service';
+import { Filial } from '../../core/models/filial.model';
+
+
+import { ButtonModule } from 'primeng/button';
 
 
 @Component({
@@ -28,21 +33,28 @@ import { FiscalDataService, BuscaFiscalResultDTO } from '../../core/services/fis
         MatSelectModule,
         MatInputModule,
         InputNumberModule,
-        MatAutocompleteModule
+        MatAutocompleteModule,
+        ButtonModule
     ],
     templateUrl: './configuracoes-geral.component.html',
     styles: [`
-        .dropzone {
-            border: 2px dashed #cbd5e1;
-            border-radius: 0.5rem;
-            padding: 2rem;
+        .dropzone-new {
+            border: 2px dashed #e2e8f0;
+            border-radius: 1rem;
+            padding: 2.5rem;
             text-align: center;
             background-color: #f8fafc;
             cursor: pointer;
-            transition: border-color 0.3s ease;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-        .dropzone:hover {
-            border-color: #f97316; /* Tailwind orange-500 */
+        .dropzone-new:hover {
+            border-color: #6366f1;
+            background-color: #f1f5f9;
+            transform: translateY(-2px);
         }
     `]
 })
@@ -51,10 +63,16 @@ export class ConfiguracoesGeralComponent implements OnInit {
     private configService = inject(ConfiguracaoFiscalGeralService);
     private notification = inject(NotificationService);
     private fiscalDataService = inject(FiscalDataService);
+    private filialService = inject(FilialService);
 
     configForm!: FormGroup;
     isLoading = false;
     isSaving = false;
+    showDownloadModal = false;
+    isDownloading = false;
+    downloadPasswordCtrl = new FormControl('', Validators.required);
+
+    filiais: Filial[] = [];
 
     cnaes: BuscaFiscalResultDTO[] = [];
     cnaeSearchCtrl = new FormControl<string | BuscaFiscalResultDTO | null>('');
@@ -65,7 +83,7 @@ export class ConfiguracoesGeralComponent implements OnInit {
 
     ngOnInit(): void {
         this.initForm();
-        this.carregarConfiguracoes();
+        this.carregarFiliaisEConfiguracoes();
 
         this.cnaeSearchCtrl.valueChanges.pipe(
             debounceTime(300),
@@ -82,12 +100,18 @@ export class ConfiguracoesGeralComponent implements OnInit {
     private initForm(): void {
         this.configForm = this.fb.group({
             id: [null],
+            filialId: [null, Validators.required],
             senhaCertificado: [''],
-            ambienteServicos: ['Produção', Validators.required],
-            ambienteProdutos: ['Produção', Validators.required],
             regimeTributario: [6, Validators.required],
             faturamentoAnual: [null],
             cnaePrincipal: ['']
+        });
+
+        // Monitorar troca de filial
+        this.configForm.get('filialId')?.valueChanges.subscribe(filialId => {
+            if (filialId && !this.isLoading) {
+                this.carregarConfiguracoes(filialId);
+            }
         });
     }
 
@@ -115,15 +139,38 @@ export class ConfiguracoesGeralComponent implements OnInit {
         document.getElementById('fileUpload')?.click();
     }
 
-    private carregarConfiguracoes(): void {
+    private carregarFiliaisEConfiguracoes(): void {
         this.isLoading = true;
-        this.configService.getConfiguracao().subscribe({
+        this.filialService.listarTodas().subscribe({
+            next: (filiais) => {
+                this.filiais = filiais;
+                const defaultFilial = filiais.length > 0 ? filiais[0].id : null;
+                if (defaultFilial) {
+                    this.configForm.get('filialId')?.setValue(defaultFilial, { emitEvent: false });
+                    this.carregarConfiguracoes(defaultFilial as string);
+                } else {
+                    this.isLoading = false;
+                }
+            },
+            error: () => {
+                this.notification.error('Erro ao carregar filiais.');
+                this.isLoading = false;
+            }
+        });
+    }
+
+    private carregarConfiguracoes(filialId?: string): void {
+        this.isLoading = true;
+        this.configService.getConfiguracao(filialId).subscribe({
             next: (config) => {
-                if (config) {
+                // Reset search controllers and local state
+                this.cnaeSearchCtrl.setValue('', { emitEvent: false });
+                this.certInfo = null;
+
+                if (config && config.id) {
                     this.configForm.patchValue({
                         id: config.id,
-                        ambienteServicos: config.ambienteServicos || 'Homologação',
-                        ambienteProdutos: config.ambienteProdutos || 'Homologação',
+                        filialId: config.filialId || filialId,
                         regimeTributario: config.regimeTributario || 6,
                         faturamentoAnual: config.faturamentoAnual,
                         cnaePrincipal: config.cnaePrincipal
@@ -150,7 +197,8 @@ export class ConfiguracoesGeralComponent implements OnInit {
     }
 
     private loadCertificadoInfo() {
-        this.configService.getCertificadoInfo().subscribe({
+        const filialId = this.configForm.get('filialId')?.value;
+        this.configService.getCertificadoInfo(filialId).subscribe({
             next: (info) => {
                 this.certInfo = info;
             },
@@ -184,6 +232,59 @@ export class ConfiguracoesGeralComponent implements OnInit {
             error: (err) => {
                 this.notification.error('Erro ao salvar as configurações.');
                 this.isSaving = false;
+            }
+        });
+    }
+
+    abrirModalDownload(): void {
+        this.downloadPasswordCtrl.reset();
+        this.showDownloadModal = true;
+    }
+
+    fecharModalDownload(): void {
+        this.showDownloadModal = false;
+        this.downloadPasswordCtrl.reset();
+    }
+
+    baixarCertificado(): void {
+        if (this.downloadPasswordCtrl.invalid) {
+            this.downloadPasswordCtrl.markAsTouched();
+            return;
+        }
+
+        this.isDownloading = true;
+        const filialId = this.configForm.get('filialId')?.value;
+        const senha = this.downloadPasswordCtrl.value;
+
+        if (!filialId || !senha) {
+            this.notification.error('Filial ou senha não informada.');
+            this.isDownloading = false;
+            return;
+        }
+
+        // Chamada real ao Serviço do Angular
+        this.configService.downloadCertificado(filialId as string, senha as string).subscribe({
+            next: (blob: Blob) => {
+                // Cria um link temporário para o download do arquivo binário (Blob)
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `certificado_filial_${filialId}.pfx`; // Nome do arquivo sugerido
+                document.body.appendChild(a);
+                a.click();
+
+                // Limpeza do DOM e memória
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                this.notification.success('Download concluído com sucesso.');
+                this.isDownloading = false;
+                this.fecharModalDownload();
+            },
+            error: (err: any) => {
+                console.error(err);
+                this.notification.error('Senha incorreta ou erro ao recuperar o certificado.');
+                this.isDownloading = false;
             }
         });
     }

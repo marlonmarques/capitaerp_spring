@@ -54,7 +54,7 @@ export class AuthService {
             email: payload.username,
             firstName: payload.username,
             lastName: '',
-            roles: payload.authorities ?? []
+            roles: (payload.authorities ?? []).map(auth => ({ id: 0, authority: auth }))
           };
           this.storeUser(user);
           this.currentUserSubject.next(user);
@@ -88,7 +88,7 @@ export class AuthService {
       'Authorization': 'Bearer ' + this.getToken()
     });
 
-    return this.http.get<User>(`${this.API_URL}/users/me`, { headers }).pipe(
+    return this.http.get<User>(`${this.API_URL}/api/v1/users/me`, { headers }).pipe(
       tap(user => {
         this.storeUser(user);
         this.currentUserSubject.next(user);
@@ -123,6 +123,20 @@ export class AuthService {
     this.notification.success('Logout realizado com sucesso!');
   }
 
+  /** Verifica se a sessão ainda é válida no servidor */
+  checkSessionStatus(): void {
+    if (!this.getToken()) return;
+
+    this.http.get(`${this.API_URL}/api/v1/users/me`).subscribe({
+      error: (err) => {
+        if (err.status === 401 || err.status === 403) {
+          console.warn('Sessão inválida detectada pelo Heartbeat. Redirecionando...');
+          this.logout();
+        }
+      }
+    });
+  }
+
   getToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);
   }
@@ -144,7 +158,7 @@ export class AuthService {
 
   hasRole(role: string): boolean {
     const user = this.currentUserSubject.value;
-    if (user) return user.roles.includes(role);
+    if (user) return user.roles.some(r => r.authority === role);
     // fallback: verificar diretamente no token
     const token = this.getToken();
     if (!token) return false;
@@ -154,7 +168,7 @@ export class AuthService {
 
   hasAnyRole(roles: string[]): boolean {
     const user = this.currentUserSubject.value;
-    if (user) return roles.some(role => user.roles.includes(role));
+    if (user) return roles.some(role => user.roles.some(r => r.authority === role));
     // fallback: verificar diretamente no token
     const token = this.getToken();
     if (!token) return false;

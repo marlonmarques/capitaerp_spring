@@ -1,11 +1,10 @@
 package com.erp.capitalerp.application.estoque;
 
+import com.erp.capitalerp.application.estoque.dto.ProdutoBuscaVendaDTO;
 import com.erp.capitalerp.application.estoque.dto.ProdutoDTO;
 import com.erp.capitalerp.application.estoque.dto.ProdutoVariacaoDTO;
-import com.erp.capitalerp.domain.estoque.Produto;
-import com.erp.capitalerp.domain.estoque.ProdutoStatus;
-import com.erp.capitalerp.domain.estoque.ProdutoVariacao;
-import com.erp.capitalerp.domain.estoque.ProdutoVariacaoAtributo;
+import com.erp.capitalerp.domain.estoque.*;
+import com.erp.capitalerp.domain.fiscal.GrupoTributario;
 import com.erp.capitalerp.infrastructure.persistence.cadastros.CategoriaRepository;
 import com.erp.capitalerp.infrastructure.persistence.cadastros.FornecedorRepository;
 import com.erp.capitalerp.infrastructure.persistence.estoque.ProdutoRepository;
@@ -13,13 +12,17 @@ import com.erp.capitalerp.infrastructure.persistence.estoque.ProdutoVariacaoRepo
 import com.erp.capitalerp.infrastructure.persistence.cadastros.GrupoTributarioRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -53,6 +56,65 @@ public class ProdutoService {
             }
         }
         return produtoRepository.findComFiltros(busca, statusEnum, pageable).map(ProdutoDTO::new);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProdutoBuscaVendaDTO> buscarParaVenda(String busca) {
+        String buscaNormalizada = busca != null ? busca.trim().toLowerCase() : "";
+
+        // 1. Produtos simples (sem variações)
+        List<ProdutoBuscaVendaDTO> simples = produtoRepository.findAllAtivos().stream()
+                .filter(p -> !Boolean.TRUE.equals(p.getTemVariacoes()))
+                .filter(p -> p.getNome().toLowerCase().contains(buscaNormalizada) ||
+                        (p.getCodigoBarras() != null && p.getCodigoBarras().contains(buscaNormalizada)))
+                .map(this::mapToVendaDTO)
+                .toList();
+
+        // 2. Variações de produtos
+        List<ProdutoBuscaVendaDTO> variacoes = variacaoRepository.findAll().stream()
+                .filter(v -> Boolean.TRUE.equals(v.getAtivo()) && v.getProduto().getDeletadoEm() == null)
+                .filter(v -> v.getProduto().getNome().toLowerCase().contains(buscaNormalizada) ||
+                        v.getNomeVariacao().toLowerCase().contains(buscaNormalizada) ||
+                        (v.getSku() != null && v.getSku().toLowerCase().contains(buscaNormalizada)) ||
+                        (v.getCodigoBarras() != null && v.getCodigoBarras().contains(buscaNormalizada)))
+                .map(this::mapToVendaDTO)
+                .toList();
+
+        // Une e limita o resultado para não sobrecarregar
+        return Stream.concat(simples.stream(), variacoes.stream())
+                .sorted(Comparator.comparing(ProdutoBuscaVendaDTO::nome))
+                .limit(50)
+                .toList();
+    }
+
+    private ProdutoBuscaVendaDTO mapToVendaDTO(Produto p) {
+        return new ProdutoBuscaVendaDTO(
+                p.getId(), null, p.getCodigoBarras(), p.getNome(),
+                p.getPrecoVenda(), p.getEstoqueAtual(), p.getUnidadeMedida(),
+                p.getCodigoNcm(), p.getCfop(),
+                p.getCstIcms() != null ? p.getCstIcms() : "102",
+                p.getAliquotaIcms() != null ? p.getAliquotaIcms() : BigDecimal.ZERO,
+                p.getCstPis() != null ? p.getCstPis() : "01",
+                p.getAliquotaPis() != null ? p.getAliquotaPis() : BigDecimal.ZERO,
+                p.getCstCofins() != null ? p.getCstCofins() : "01",
+                p.getAliquotaCofins() != null ? p.getAliquotaCofins() : BigDecimal.ZERO,
+                p.getOrigem() != null && p.getOrigem().equals("NACIONAL") ? 0 : 1);
+    }
+
+    private ProdutoBuscaVendaDTO mapToVendaDTO(ProdutoVariacao v) {
+        Produto p = v.getProduto();
+        String nomeFull = p.getNome() + " [" + v.getNomeVariacao() + "]";
+        return new ProdutoBuscaVendaDTO(
+                p.getId(), v.getId(), v.getSku() != null ? v.getSku() : v.getCodigoBarras(), nomeFull,
+                v.getPrecoVendaEfetivo(), v.getEstoqueAtual(), p.getUnidadeMedida(),
+                p.getCodigoNcm(), p.getCfop(),
+                p.getCstIcms() != null ? p.getCstIcms() : "102",
+                p.getAliquotaIcms() != null ? p.getAliquotaIcms() : BigDecimal.ZERO,
+                p.getCstPis() != null ? p.getCstPis() : "01",
+                p.getAliquotaPis() != null ? p.getAliquotaPis() : BigDecimal.ZERO,
+                p.getCstCofins() != null ? p.getCstCofins() : "01",
+                p.getAliquotaCofins() != null ? p.getAliquotaCofins() : BigDecimal.ZERO,
+                p.getOrigem() != null && p.getOrigem().equals("NACIONAL") ? 0 : 1);
     }
 
     @Transactional(readOnly = true)

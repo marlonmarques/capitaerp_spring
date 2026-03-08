@@ -6,6 +6,7 @@ import com.erp.capitalerp.infrastructure.persistence.nfse.ConfiguracaoNfeReposit
 import com.erp.capitalerp.config.multitenancy.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
 
 @Service
 public class ConfiguracaoNfeService {
@@ -17,20 +18,42 @@ public class ConfiguracaoNfeService {
     }
 
     @Transactional(readOnly = true)
-    public ConfiguracaoNfeDTO buscarConfiguracao() {
+    public ConfiguracaoNfeDTO buscarConfiguracao(UUID filialId) {
         String tenantId = TenantContext.getCurrentTenant();
-        ConfiguracaoNfe config = repository.findTopByTenantIdentifierOrderByIdAsc(tenantId)
-                .orElse(new ConfiguracaoNfe());
+        ConfiguracaoNfe config;
+        
+        if (filialId != null) {
+            config = repository.findByTenantIdentifierAndFilialId(tenantId, filialId)
+                    .orElseGet(() -> {
+                        ConfiguracaoNfe c = new ConfiguracaoNfe();
+                        c.setTenantIdentifier(tenantId);
+                        c.setFilialId(filialId);
+                        return c;
+                    });
+        } else {
+            config = repository.findTopByTenantIdentifierOrderByIdAsc(tenantId)
+                    .orElse(new ConfiguracaoNfe());
+        }
+        
         return new ConfiguracaoNfeDTO(config);
     }
 
     @Transactional
     public ConfiguracaoNfeDTO salvarConfiguracao(ConfiguracaoNfeDTO dto) {
         String tenantId = TenantContext.getCurrentTenant();
-        ConfiguracaoNfe config = repository.findTopByTenantIdentifierOrderByIdAsc(tenantId)
-                .orElse(new ConfiguracaoNfe());
+        UUID filialId = dto.filialId();
+        
+        ConfiguracaoNfe config;
+        if (filialId != null) {
+            config = repository.findByTenantIdentifierAndFilialId(tenantId, filialId)
+                    .orElse(new ConfiguracaoNfe());
+        } else {
+            config = repository.findTopByTenantIdentifierOrderByIdAsc(tenantId)
+                    .orElse(new ConfiguracaoNfe());
+        }
 
         config.setTenantIdentifier(tenantId);
+        config.setFilialId(filialId);
         config.setAtivarNfe(dto.ativarNfe() != null ? dto.ativarNfe() : config.getAtivarNfe());
         config.setSerie(dto.serie() != null ? dto.serie() : config.getSerie());
         config.setNumeroNfe(dto.numeroNfe() != null ? dto.numeroNfe() : config.getNumeroNfe());

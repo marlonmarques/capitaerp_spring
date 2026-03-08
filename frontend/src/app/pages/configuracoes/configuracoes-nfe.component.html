@@ -1,13 +1,13 @@
-<div class="space-y-6 max-w-5xl mx-auto pb-12 w-full">
+<div class="max-w-[1400px] mx-auto animate-in fade-in duration-500 py-6 px-4">
 
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-8">
         <div>
-            <h2 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-                <mat-icon class="text-indigo-600">local_mall</mat-icon>
-                NF-e Global
+            <h2 class="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <i class="pi pi-box text-emerald-600"></i>
+                NF-e (Mercadorias)
             </h2>
             <p class="text-slate-500 text-sm font-medium mt-1">
-                Configure a numeração, regras e automações de email da NF-e (Mercadorias).
+                Configure a numeração, regras fiscais e automações de email para o Modelo 55.
             </p>
         </div>
 
@@ -24,21 +24,42 @@
 
     <form *ngIf="configForm && !isLoading" [formGroup]="configForm" class="space-y-6">
 
-        <!-- Card Principal -->
-        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
-                    <mat-icon class="text-indigo-500 text-[18px]">toggle_on</mat-icon>
+        <!-- Seleção de Filial -->
+        <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
+            <div class="px-8 py-5 flex items-center justify-between bg-slate-50/30 border-b border-slate-100">
+                <div class="flex items-center gap-4 w-full md:w-1/2">
+                    <i class="pi pi-building text-indigo-500 text-xl"></i>
+                    <div class="flex-1">
+                        <label
+                            class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 block">Filial
+                            de Configuração</label>
+                        <select formControlName="filialId"
+                            class="field-input w-full bg-white border-slate-200 rounded-lg py-2 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold">
+                            <option [ngValue]="null">-- Selecione a Filial --</option>
+                            <option *ngFor="let filial of filiais" [value]="filial.id">
+                                {{ filial.nomeFantasia || filial.razaoSocial }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Motor de Emissão -->
+        <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
+            <div class="px-8 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-widest">
+                    <i class="pi pi-cog text-indigo-500"></i>
                     Motor de Emissão
                 </h2>
 
                 <!-- Toggle Ativar NF-e -->
-                <div class="flex items-center gap-3">
-                    <span class="text-sm font-bold text-slate-600">Ativar Emissão NF-e</span>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Ativar Emissão</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" formControlName="ativarNfe" class="sr-only peer">
                         <div
-                            class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500">
+                            class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500">
                         </div>
                     </label>
                 </div>
@@ -47,128 +68,119 @@
             <div class="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 [class.opacity-50]="!configForm.get('ativarNfe')?.value">
 
-                <!-- Ambiente -->
-                <div class="mb-2.5">
-                    <label class="field-label">Ambiente Sefaz <span class="text-rose-500">*</span></label>
-                    <select formControlName="ambiente" class="field-input w-full bg-white">
+                <div class="md:col-span-2 lg:col-span-3">
+                    <h2
+                        class="text-xs font-black text-slate-400 flex items-center gap-2 uppercase tracking-widest mb-2 mt-2">
+                        <i class="pi pi-briefcase text-amber-500"></i>
+                        Padrões de Emissão
+                    </h2>
+                </div>
+
+                <div class="w-full">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Ambiente Sefaz</label>
+                    <select formControlName="ambiente"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5">
                         <option value="HOMOLOGACAO">Homologação (Testes)</option>
                         <option value="PRODUCAO">Produção</option>
                     </select>
                 </div>
 
-                <!-- Série NF-e -->
-                <div class="mb-2.5">
-                    <label class="field-label">Série Padrão <span class="text-rose-500">*</span></label>
+                <div class="w-full">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Série Padrão</label>
                     <p-inputNumber formControlName="serie" [useGrouping]="false"
-                        styleClass="field-input p-0 h-full w-full"
-                        [inputStyle]="{'width': '100%', 'height': '46px', 'padding': '0 16px', 'border': 'none', 'background': 'transparent'}">
+                        inputStyleClass="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 font-bold">
                     </p-inputNumber>
                 </div>
 
-                <!-- Número NF-e -->
-                <div class="mb-2.5">
-                    <label class="field-label">Próxima NF-e (Numeração) <span class="text-rose-500">*</span></label>
+                <div class="w-full">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Próxima NF-e</label>
                     <p-inputNumber formControlName="numeroNfe" [useGrouping]="false"
-                        styleClass="field-input p-0 h-full w-full"
-                        [inputStyle]="{'width': '100%', 'height': '46px', 'padding': '0 16px', 'border': 'none', 'background': 'transparent'}">
+                        inputStyleClass="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 font-bold text-blue-600">
                     </p-inputNumber>
                 </div>
 
-                <!-- Categoria Padrão -->
-                <div class="mb-2.5">
-                    <label class="field-label">Categoria Financeira</label>
-                    <select formControlName="categoriaId" class="field-input w-full bg-white text-slate-500 italic">
-                        <option [ngValue]="null">Sem Categoria Padrão</option>
+                <div class="w-full">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">CFOP Padrão</label>
+                    <input type="text" [formControl]="cfopSearchCtrl" [matAutocomplete]="autoCfop"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5"
+                        placeholder="Buscar CFOP...">
+                    <mat-autocomplete #autoCfop="matAutocomplete" [displayWith]="displayFiscal">
+                        <mat-option *ngFor="let c of cfops" [value]="c">{{ c.label }}</mat-option>
+                    </mat-autocomplete>
+                </div>
+
+                <div class="w-full">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Natureza Operação</label>
+                    <input type="text" formControlName="naturezaOperacaoPadrao"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5"
+                        placeholder="Ex: Venda de Mercadoria">
+                </div>
+
+                <div class="w-full">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Categoria Financeira</label>
+                    <select formControlName="categoriaId"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5">
+                        <option [ngValue]="null">-- Nenhuma --</option>
                         <option *ngFor="let cat of categorias" [value]="cat.id">{{ cat.nome }}</option>
                     </select>
                 </div>
 
-                <!-- Conta Bancária -->
-                <div class="mb-2.5">
-                    <label class="field-label">Conta Bancária (Recebimentos)</label>
-                    <select formControlName="contaBancariaId" class="field-input w-full bg-white text-slate-500 italic">
-                        <option [ngValue]="null">Nenhuma</option>
+                <div class="w-full">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Conta para Recebimento</label>
+                    <select formControlName="contaBancariaId"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5">
+                        <option [ngValue]="null">-- Nenhuma --</option>
                         <option *ngFor="let conta of contasBancarias" [value]="conta.id">{{ conta.nome }}</option>
                     </select>
                 </div>
 
-            </div>
-        </mat-card>
-
-        <!-- Dados Fiscais Padrões -->
-        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden"
-            [class.opacity-50]="!configForm.get('ativarNfe')?.value">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
-                    <mat-icon class="text-amber-500 text-[18px]">account_balance</mat-icon>
-                    Fiscal Padrão
-                </h2>
-            </div>
-
-            <div class="p-6 md:p-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="mb-2.5">
-                        <label class="field-label">CFOP Padrão (Venda Mercado Interno)</label>
-                        <input type="text" [formControl]="cfopSearchCtrl" [matAutocomplete]="autoCfop"
-                            class="field-input" placeholder="Buscar CFOP...">
-                        <mat-autocomplete #autoCfop="matAutocomplete" [displayWith]="displayFiscal"
-                            (optionSelected)="configForm.patchValue({ cfopPadrao: $event.option.value.id })">
-                            <mat-option *ngFor="let c of cfops" [value]="c">{{ c.label }}</mat-option>
-                        </mat-autocomplete>
-                    </div>
-                    <div class="mb-2.5">
-                        <label class="field-label">Natureza da Operação Padrão</label>
-                        <input type="text" formControlName="naturezaOperacaoPadrao" class="field-input"
-                            placeholder="Ex: Venda de Mercadoria">
-                    </div>
-                </div>
-
-                <div class="mb-2.5">
-                    <label class="field-label">Informações Complementares Padrão (Fixadas na NF-e)</label>
+                <div class="md:col-span-2 lg:col-span-3 mt-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Informações Complementares
+                        Fixas</label>
                     <textarea formControlName="infoComplementarPadrao"
-                        class="field-input w-full min-h-[100px] p-3 resize-y"
-                        placeholder="Ex: Empresa enquadrada no Simples Nacional. Pagamento via PIX CHAVE X."></textarea>
+                        class="field-input w-full min-h-[100px] bg-slate-50 border-slate-200 rounded-xl p-4 resize-y"
+                        placeholder="Ex: Empresa enquadrada no Simples Nacional."></textarea>
                 </div>
             </div>
-        </mat-card>
+        </div>
 
-        <!-- Automações: Email -->
-        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden"
+        <!-- Automação de E-mail -->
+        <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8"
             [class.opacity-50]="!configForm.get('ativarNfe')?.value">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
-                    <mat-icon class="text-emerald-500 text-[18px]">mail_lock</mat-icon>
+            <div class="px-8 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-widest">
+                    <i class="pi pi-envelope text-indigo-500"></i>
                     Automação de E-mail
                 </h2>
 
                 <!-- Toggle Enviar Email -->
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" formControlName="enviarEmail" class="sr-only peer">
-                    <div
-                        class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[100%] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500">
-                    </div>
-                    <span class="ml-2 text-sm font-bold text-slate-600">Envio Automático</span>
-                </label>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Envio Automático</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" formControlName="enviarEmail" class="sr-only peer">
+                        <div
+                            class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500">
+                        </div>
+                    </label>
+                </div>
             </div>
 
-            <div class="p-6 md:p-8 space-y-6" *ngIf="configForm.get('enviarEmail')?.value">
-                <div class="mb-2.5">
-                    <label class="field-label">Assunto do E-mail</label>
-                    <input type="text" formControlName="assuntoEmail" class="field-input font-semibold text-slate-800"
-                        placeholder="Ex: Sua Nota Fiscal">
+            <div class="p-8 space-y-6" *ngIf="configForm.get('enviarEmail')?.value">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Assunto do E-mail</label>
+                    <input type="text" formControlName="assuntoEmail"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 font-semibold"
+                        placeholder="Ex: Sua Nota Fiscal de Mercadoria">
                 </div>
 
-                <div class="mb-2.5">
-                    <label class="field-label">Mensagem do E-mail</label>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Mensagem do E-mail</label>
                     <textarea formControlName="mensagemEmail"
-                        class="field-input w-full min-h-[120px] p-4 resize-y bg-slate-50 italic"
-                        placeholder="Prezado cliente, sua nota fiscal foi emitida. O arquivo PDF e o XML encontram-se em anexo."></textarea>
-                    <p class="text-xs text-slate-400 mt-2 font-medium">Você pode usar variáveis no futuro como
-                        <span ngNonBindable>{{nome_cliente}}</span>.
-                    </p>
+                        class="field-input w-full min-h-[120px] bg-slate-50 border-slate-200 rounded-xl p-4 resize-y italic"
+                        placeholder="Prezado cliente, sua nota fiscal foi emitida..."></textarea>
                 </div>
             </div>
-        </mat-card>
+        </div>
 
     </form>
 

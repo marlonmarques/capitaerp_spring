@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.MDC;
 import org.springframework.lang.NonNull;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -21,12 +22,16 @@ import java.io.IOException;
 public class TenantInterceptor extends OncePerRequestFilter {
 
     private static final String TENANT_HEADER = "X-Tenant-ID";
+    private static final String FILIAL_HEADER = "X-Filial-ID";
+    private static final String MDC_TENANT_KEY = "tenantId";
+    private static final String MDC_FILIAL_KEY = "filialId";
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String tenantId = request.getHeader(TENANT_HEADER);
+        String filialIdStr = request.getHeader(FILIAL_HEADER);
 
         // Se o tenant chegar via parâmetro (como no login via form-encoded)
         if (tenantId == null) {
@@ -35,12 +40,25 @@ public class TenantInterceptor extends OncePerRequestFilter {
 
         if (tenantId != null) {
             TenantContext.setCurrentTenant(tenantId);
+            MDC.put(MDC_TENANT_KEY, tenantId);
+        }
+
+        if (filialIdStr != null && !filialIdStr.isBlank()) {
+            try {
+                java.util.UUID fId = java.util.UUID.fromString(filialIdStr);
+                FilialContext.setCurrentFilial(fId);
+                MDC.put(MDC_FILIAL_KEY, filialIdStr);
+            } catch (IllegalArgumentException ignored) {
+            }
         }
 
         try {
             filterChain.doFilter(request, response);
         } finally {
             TenantContext.clear();
+            FilialContext.clear();
+            MDC.remove(MDC_TENANT_KEY);
+            MDC.remove(MDC_FILIAL_KEY);
         }
     }
 }

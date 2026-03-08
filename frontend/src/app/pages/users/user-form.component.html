@@ -1,0 +1,123 @@
+<div class="p-6 md:p-8 font-sans bg-slate-50 min-h-screen">
+  <header class="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-none mb-1">
+        {{ isEditMode() ? 'Editar Usuário' : 'Novo Usuário' }}
+      </h1>
+      <p class="text-slate-500 font-medium">Configure os dados de acesso e permissões individuais do usuário</p>
+    </div>
+    <button mat-stroked-button color="primary" class="!rounded-xl !h-12 !px-6" (click)="voltar()">
+      <mat-icon class="mr-2">arrow_back</mat-icon> Voltar
+    </button>
+  </header>
+
+  <form [formGroup]="userForm" (ngSubmit)="salvar()">
+    <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden mb-8 max-w-5xl mx-auto">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
+          <mat-icon class="text-indigo-500 text-[18px]">person</mat-icon>
+          Informações de Cadastro e Acesso
+        </h2>
+      </div>
+      
+      <div class="p-8 bg-white">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Nome -->
+          <div class="mb-2.5">
+            <label class="field-label">Primeiro Nome <span class="text-rose-500">*</span></label>
+            <input type="text" formControlName="firstName" class="field-input" placeholder="Ex: Admin">
+            <div *ngIf="userForm.get('firstName')?.invalid && userForm.get('firstName')?.touched" class="field-error">
+              O primeiro nome é obrigatório
+            </div>
+          </div>
+
+          <!-- Sobrenome -->
+          <div class="mb-2.5">
+            <label class="field-label">Sobrenome <span class="text-rose-500">*</span></label>
+            <input type="text" formControlName="lastName" class="field-input" placeholder="Ex: Capital">
+            <div *ngIf="userForm.get('lastName')?.invalid && userForm.get('lastName')?.touched" class="field-error">
+              O sobrenome é obrigatório
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-2.5">
+            <label class="field-label">Email (Login / Identificação) <span class="text-rose-500">*</span></label>
+            <input type="email" formControlName="email" class="field-input" placeholder="usuario@capital.com">
+            <div *ngIf="userForm.get('email')?.invalid && userForm.get('email')?.touched" class="field-error">
+              <span *ngIf="userForm.get('email')?.errors?.['required']">O email é obrigatório</span>
+              <span *ngIf="userForm.get('email')?.errors?.['email']">Digite um email válido</span>
+            </div>
+          </div>
+
+          <!-- Senha -->
+          <div class="mb-2.5">
+            <label class="field-label">{{ isEditMode() ? 'Atualizar Senha (opcional)' : 'Senha de Acesso *' }}</label>
+            <input type="password" formControlName="password" class="field-input" placeholder="●●●●●●●●">
+            <div *ngIf="userForm.get('password')?.invalid && userForm.get('password')?.touched" class="field-error">
+              <span *ngIf="userForm.get('password')?.errors?.['required']">A senha é obrigatória na criação</span>
+              <span *ngIf="userForm.get('password')?.errors?.['minlength']">A senha deve ter no mínimo 6 caracteres</span>
+            </div>
+          </div>
+
+          <div class="md:col-span-2 my-2 border-t border-slate-100"></div>
+
+          <!-- Filial Padrão -->
+          <div class="mb-2.5">
+            <label class="field-label">Filial Padrão <span class="text-rose-500">*</span></label>
+            <select formControlName="filialId" class="field-input">
+              <option [ngValue]="null">-- Selecione a filial principal --</option>
+              <option *ngFor="let f of allFiliais()" [value]="f.value">{{ f.label }}</option>
+            </select>
+            <div *ngIf="userForm.get('filialId')?.invalid && userForm.get('filialId')?.touched" class="field-error">
+                Selecione a filial padrão do usuário
+            </div>
+          </div>
+
+          <!-- Perfis de Acesso -->
+          <div class="mb-2.5">
+            <label class="field-label">Perfis de Acesso <span class="text-rose-500">*</span></label>
+            <p-multiSelect 
+              [options]="rolesList()" 
+              formControlName="rolesIds" 
+              placeholder="Selecionar perfis"
+              [filter]="true"
+              emptyMessage="Nenhum perfil encontrado"
+              styleClass="w-full h-[40.5px]"
+              [style]="{'border-color': '#e2e8f0', 'border-radius': '0.6rem'}">
+            </p-multiSelect>
+            <div *ngIf="userForm.get('rolesIds')?.invalid && userForm.get('rolesIds')?.touched" class="field-error">
+                Selecione pelo menos um perfil de acesso
+            </div>
+          </div>
+
+          <!-- Filiais Adicionais -->
+          <div class="mb-2.5 md:col-span-2">
+            <label class="field-label">Filiais Adicionais (Permissão de Troca)</label>
+            <p-multiSelect 
+              [options]="allFiliais()" 
+              formControlName="filiaisIds" 
+              placeholder="Permitir acesso a outras filiais"
+              [filter]="true"
+              emptyMessage="Nenhuma filial encontrada"
+              styleClass="w-full h-[40.5px]"
+              [style]="{'border-color': '#e2e8f0', 'border-radius': '0.6rem'}">
+            </p-multiSelect>
+            <p class="text-[10px] text-slate-400 mt-1 italic">
+              Este usuário poderá alternar sua sessão entre as filiais selecionadas no menu lateral.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
+          <button type="button" mat-stroked-button class="!rounded-lg" (click)="voltar()">
+            Cancelar
+          </button>
+          <button type="submit" mat-flat-button color="primary" class="!rounded-lg !bg-indigo-600 !px-8" [disabled]="userForm.invalid">
+            <mat-icon class="mr-1">save</mat-icon> {{ isEditMode() ? 'Salvar Alterações' : 'Salvar Usuário' }}
+          </button>
+        </div>
+      </div>
+    </mat-card>
+  </form>
+</div>

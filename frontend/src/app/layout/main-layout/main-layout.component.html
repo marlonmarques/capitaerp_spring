@@ -41,12 +41,19 @@
           <div *ngIf="item.children">
             <a (click)="toggleSubmenu(item)"
               class="flex items-center justify-between p-3 text-blue-100 rounded-md hover:bg-blue-800/50 hover:text-white transition-all cursor-pointer group overflow-hidden select-none"
-              [title]="isCollapsed ? item.label : ''">
+              [ngClass]="{
+      'bg-blue-800/60': isParentActive(item),
+      'border-l-4': isParentActive(item),
+      'border-blue-400': isParentActive(item)
+    }" [title]="isCollapsed ? item.label : ''">
               <div class="flex items-center">
-                <i [class]="item.icon + ' text-xl w-6 text-center group-hover:scale-110 transition-transform'"></i>
+                <i [class]="item.icon + ' text-xl w-6 text-center group-hover:scale-110 transition-transform'"
+                  [ngClass]="{ 'text-white': isParentActive(item) }"></i>
                 <span *ngIf="!isCollapsed"
-                  class="ml-3 font-bold text-[13px] uppercase tracking-wider text-blue-300 whitespace-nowrap">{{
-                  item.label }}</span>
+                  class="ml-3 font-bold text-[13px] uppercase tracking-wider text-blue-300 whitespace-nowrap"
+                  [ngClass]="{ 'text-white': isParentActive(item) }">
+                  {{ item.label }}
+                </span>
               </div>
               <i *ngIf="!isCollapsed" class="pi text-sm transition-transform duration-300"
                 [ngClass]="item.expanded ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
@@ -63,7 +70,7 @@
                   class="flex items-center py-2.5 pr-3 pl-8 text-[14px] text-blue-200 rounded-md hover:bg-blue-800/40 hover:text-white transition-all relative group">
                   <!-- Bullet indicator -->
                   <div
-                    class="absolute left-[1.05rem] w-1.5 h-1.5 rounded-full bg-blue-700 group-hover:bg-blue-400 group-[.font-semibold]:bg-blue-400 transition-colors">
+                    class="absolute left-[1.05rem] w-1.5 h-1.5 rounded-full bg-blue-700 group-hover:bg-blue-400 transition-colors">
                   </div>
                   <span class="whitespace-nowrap">{{ child.label }}</span>
                 </a>
@@ -75,11 +82,12 @@
     </nav>
 
     <!-- Footer Sidebar -->
-    <div class="p-4 border-t border-blue-800 bg-blue-950/30">
+    <div class="p-4 border-t border-blue-800/50 bg-blue-950/30">
       <button (click)="isCollapsed = !isCollapsed"
-        class="w-full flex items-center justify-center p-2 rounded-lg hover:bg-blue-800 transition-colors text-blue-300">
-        <i class="pi" [ngClass]="isCollapsed ? 'pi-chevron-right' : 'pi-chevron-left'"></i>
-        <span *ngIf="!isCollapsed" class="ml-2 text-xs uppercase tracking-widest font-bold">Recolher</span>
+        class="w-full h-10 flex items-center justify-center p-2 rounded-lg hover:bg-blue-700/50 text-blue-200 hover:text-white transition-all border border-transparent hover:border-blue-500/30 shadow-inner group">
+        <i class="pi transition-transform duration-300 group-hover:scale-110"
+          [ngClass]="isCollapsed ? 'pi-angle-double-right' : 'pi-angle-double-left'"></i>
+        <span *ngIf="!isCollapsed" class="ml-2 text-[10px] uppercase tracking-[0.2em] font-black">Recolher</span>
       </button>
     </div>
   </aside>
@@ -122,7 +130,7 @@
             <span class="text-sm font-semibold text-gray-700 block leading-tight">{{ currentUser?.firstName || 'Usuário'
               }}</span>
             <span class="text-[10px] text-gray-400 block uppercase tracking-tighter">{{
-              currentUser?.roles?.[0]?.replace('ROLE_', '') || 'Perfil' }}</span>
+              currentUser?.roles?.[0]?.authority?.replace('ROLE_', '') || 'Perfil' }}</span>
           </div>
           <i class="pi pi-angle-down ml-2 text-gray-400 group-hover:translate-y-0.5 transition-transform"></i>
         </div>
@@ -186,13 +194,19 @@
             <mat-icon class="text-slate-400">group</mat-icon>
             <span class="text-slate-700">Gerenciar Usuários</span>
           </button>
+
+          <button mat-menu-item routerLink="/audit" *ngIf="authService.hasAnyRole(['ROLE_ADMIN', 'ROLE_OPERATOR'])">
+            <mat-icon class="text-slate-400">terminal</mat-icon>
+            <span class="text-slate-700">Auditoria Técnica</span>
+          </button>
         </mat-menu>
 
 
-
+        <p-toast />
+        <p-confirmDialog />
         <button (click)="logout()"
-          class="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all"
-          title="Sair do sistema">
+          class="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all" title="Sair do sistema"
+          pButton>
           <i class="pi pi-power-off text-lg font-bold"></i>
         </button>
       </div>

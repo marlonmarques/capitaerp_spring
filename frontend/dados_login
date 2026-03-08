@@ -1,7 +1,7 @@
 Campo	Valor Administrador	Valor Operador
 Empresa ID	capital (qualquer valor — campo ainda não validado no backend)	capital
-E-mail	admin@capital.com	maria@capital.com
-Senha	123456	123456
+E-mail	admin@capital.com	        maria@capital.com
+Senha	123456	                    123456
 Role	ROLE_ADMIN + ROLE_OPERATOR	ROLE_OPERATOR
 
 

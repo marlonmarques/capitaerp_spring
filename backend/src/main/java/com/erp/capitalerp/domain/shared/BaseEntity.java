@@ -37,6 +37,9 @@ public abstract class BaseEntity {
     @LastModifiedBy
     private String atualizadoPor;
 
+    @Column(length = 20)
+    private String tenantIdentifier;
+
     public UUID getId() {
         return id;
     }
@@ -75,5 +78,13 @@ public abstract class BaseEntity {
 
     public void setAtualizadoPor(String atualizadoPor) {
         this.atualizadoPor = atualizadoPor;
+    }
+
+    public String getTenantIdentifier() {
+        return tenantIdentifier;
+    }
+
+    public void setTenantIdentifier(String tenantIdentifier) {
+        this.tenantIdentifier = tenantIdentifier;
     }
 }

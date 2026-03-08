@@ -1,13 +1,14 @@
-<div class="space-y-6 max-w-5xl mx-auto pb-12 w-full">
+<div class="max-w-[1400px] mx-auto animate-in fade-in duration-500 py-6 px-4">
 
-    <div class="flex items-center justify-between mb-2">
+    <!-- Header Section -->
+    <div class="flex items-center justify-between mb-8">
         <div>
-            <h2 class="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-                <mat-icon class="text-indigo-600">receipt_long</mat-icon>
-                NFS-e Global
+            <h2 class="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <i class="pi pi-receipt text-indigo-600"></i>
+                NFS-e (Serviços)
             </h2>
             <p class="text-slate-500 text-sm font-medium mt-1">
-                Configure a numeração de RPS, CNAE padrão, e automações de email da NFS-e.
+                Configure a numeração de RPS, CNAE padrão e automações de email para serviços.
             </p>
         </div>
 
@@ -24,21 +25,41 @@
 
     <form *ngIf="configForm && !isLoading" [formGroup]="configForm" class="space-y-6">
 
-        <!-- Card Principal -->
-        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
-                    <mat-icon class="text-indigo-500 text-[18px]">toggle_on</mat-icon>
+        <!-- Seleção de Filial -->
+        <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
+            <div class="px-8 py-5 flex items-center justify-between bg-slate-50/30 border-b border-slate-100">
+                <div class="flex items-center gap-4 w-full md:w-1/2">
+                    <i class="pi pi-building text-indigo-500 text-xl"></i>
+                    <div class="flex-1">
+                        <label
+                            class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 block">Filial
+                            de Configuração</label>
+                        <select formControlName="filialId"
+                            class="field-input w-full bg-white border-slate-200 rounded-lg py-2 focus:ring-2 focus:ring-indigo-500/20 transition-all font-semibold">
+                            <option *ngFor="let filial of filiais" [value]="filial.id">
+                                {{ filial.nomeFantasia || filial.razaoSocial }} {{ filial.isMatriz ? '(MATRIZ)' : '' }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Motor de Emissão -->
+        <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8">
+            <div class="px-8 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-widest">
+                    <i class="pi pi-cog text-indigo-500"></i>
                     Motor de Emissão
                 </h2>
 
                 <!-- Toggle Ativar NFS-e -->
-                <div class="flex items-center gap-3">
-                    <span class="text-sm font-bold text-slate-600">Ativar Emissão NFS-e</span>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Ativar Emissão</span>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" formControlName="ativarNfse" class="sr-only peer">
                         <div
-                            class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500">
+                            class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500">
                         </div>
                     </label>
                 </div>
@@ -48,144 +69,165 @@
                 [class.opacity-50]="!configForm.get('ativarNfse')?.value">
 
                 <!-- Ambiente -->
-                <div class="mb-2.5">
-                    <label class="field-label">Ambiente Sefaz <span class="text-rose-500">*</span></label>
-                    <select formControlName="ambiente" class="field-input w-full bg-white">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Ambiente Sefaz</label>
+                    <select formControlName="ambiente"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5">
                         <option value="HOMOLOGACAO">Homologação (Testes)</option>
                         <option value="PRODUCAO">Produção</option>
                     </select>
                 </div>
 
-                <!-- Série NFS-e -->
-                <div class="mb-2.5">
-                    <label class="field-label">Série Padrão <span class="text-rose-500">*</span></label>
+                <!-- Série -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Série Padrão</label>
                     <p-inputNumber formControlName="serie" [useGrouping]="false"
-                        styleClass="field-input p-0 h-full w-full"
-                        [inputStyle]="{'width': '100%', 'height': '46px', 'padding': '0 16px', 'border': 'none', 'background': 'transparent'}">
+                        inputStyleClass="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 font-bold">
                     </p-inputNumber>
                 </div>
 
-                <!-- Número RPS -->
-                <div class="mb-2.5">
-                    <label class="field-label">Próximo RPS (Numeração) <span class="text-rose-500">*</span></label>
+                <!-- Próximo RPS -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Próximo RPS</label>
                     <p-inputNumber formControlName="numeroRps" [useGrouping]="false"
-                        styleClass="field-input p-0 h-full w-full"
-                        [inputStyle]="{'width': '100%', 'height': '46px', 'padding': '0 16px', 'border': 'none', 'background': 'transparent'}">
+                        inputStyleClass="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 font-bold text-blue-600">
                     </p-inputNumber>
                 </div>
 
                 <!-- Categoria Padrão -->
-                <div class="mb-2.5">
-                    <label class="field-label">Categoria Financeira</label>
-                    <select formControlName="categoriaId" class="field-input w-full bg-white text-slate-500 italic">
-                        <option [ngValue]="null">Sem Categoria Padrão</option>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Categoria Financeira</label>
+                    <select formControlName="categoriaId"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5">
+                        <option [ngValue]="null">-- Nenhuma --</option>
                         <option *ngFor="let cat of categorias" [value]="cat.id">{{ cat.nome }}</option>
                     </select>
                 </div>
 
                 <!-- Conta Bancária -->
-                <div class="mb-2.5">
-                    <label class="field-label">Conta Bancária (Recebimentos)</label>
-                    <select formControlName="contaBancariaId" class="field-input w-full bg-white text-slate-500 italic">
-                        <option [ngValue]="null">Nenhuma</option>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Conta Bancária</label>
+                    <select formControlName="contaBancariaId"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5">
+                        <option [ngValue]="null">-- Nenhuma --</option>
                         <option *ngFor="let conta of contasBancarias" [value]="conta.id">{{ conta.nome }}</option>
                     </select>
                 </div>
-
             </div>
-        </mat-card>
+        </div>
 
-        <!-- Dados Fiscais Padrões -->
-        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden"
+        <!-- Impostos e Fiscal Padrão -->
+        <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8"
             [class.opacity-50]="!configForm.get('ativarNfse')?.value">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
-                    <mat-icon class="text-amber-500 text-[18px]">account_balance</mat-icon>
+            <div class="px-8 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-widest">
+                    <i class="pi pi-percentage text-amber-500"></i>
                     Impostos e Fiscal Padrão
                 </h2>
             </div>
 
-            <div class="p-6 md:p-8">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div class="mb-2.5">
-                        <label class="field-label">CNAE Padrão</label>
+            <div class="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="lg:col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">CNAE Padrão</label>
+                    <div class="relative">
+                        <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input type="text" [formControl]="cnaeSearchCtrl" [matAutocomplete]="autoCnae"
-                            class="field-input" placeholder="Buscar CNAE...">
-                        <mat-autocomplete #autoCnae="matAutocomplete" [displayWith]="displayFiscal"
-                            (optionSelected)="selecionarCnae($event.option.value)">
-                            <mat-option *ngFor="let c of cnaes" [value]="c">{{ c.label }}</mat-option>
-                        </mat-autocomplete>
+                            class="field-input w-full bg-slate-50 border-slate-200 rounded-xl pr-4 !pl-12 py-2.5"
+                            placeholder="Buscar CNAE...">
                     </div>
-                    <div class="mb-2.5">
-                        <label class="field-label">Item LC116 Padrão</label>
-                        <input type="text" [formControl]="lc116SearchCtrl" [matAutocomplete]="autoLc116"
-                            class="field-input" placeholder="Buscar Item LC116...">
-                        <mat-autocomplete #autoLc116="matAutocomplete" [displayWith]="displayFiscal"
-                            (optionSelected)="configForm.patchValue({ itemLc116Padrao: $event.option.value.id })">
-                            <mat-option *ngFor="let lc of lc116List" [value]="lc">{{ lc.label }}</mat-option>
-                        </mat-autocomplete>
-                    </div>
-                    <div class="mb-2.5">
-                        <label class="field-label">Alíquota ISS (%)</label>
-                        <p-inputNumber formControlName="aliquotaPadrao" mode="decimal"
-                            pTooltip="Deixe em branco para usar alíquota da cidade." tooltipPosition="top"
-                            [minFractionDigits]="2" [maxFractionDigits]="2"
-                            styleClass="field-input p-0 h-full w-full relative"
-                            [inputStyle]="{'width': '100%', 'height': '46px', 'padding': '0 16px', 'padding-right': '30px', 'border': 'none', 'background': 'transparent'}">
-                        </p-inputNumber>
-                    </div>
+                    <mat-autocomplete #autoCnae="matAutocomplete" [displayWith]="displayFiscal"
+                        (optionSelected)="selecionarCnae($event.option.value)">
+                        <mat-option *ngFor="let c of cnaes" [value]="c">{{ c.label }}</mat-option>
+                    </mat-autocomplete>
                 </div>
 
-                <div class="mb-2.5">
-                    <label class="field-label">Informações Complementares Padrão (Fixadas na NFS-e)</label>
+                <div class="lg:col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">NBS Padrão</label>
+                    <div class="relative">
+                        <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" [formControl]="nbsSearchCtrl" [matAutocomplete]="autoNbs"
+                            class="field-input w-full bg-slate-50 border-slate-200 rounded-xl pr-4 !pl-12 py-2.5"
+                            placeholder="Buscar NBS...">
+                    </div>
+                    <mat-autocomplete #autoNbs="matAutocomplete" [displayWith]="displayFiscal"
+                        (optionSelected)="selecionarNbs($event.option.value)">
+                        <mat-option *ngFor="let n of nbsList" [value]="n">{{ n.label }}</mat-option>
+                    </mat-autocomplete>
+                </div>
+
+                <div class="lg:col-span-3">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Item LC116 Padrão</label>
+                    <div class="relative">
+                        <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" [formControl]="lc116SearchCtrl" [matAutocomplete]="autoLc116"
+                            class="field-input w-full bg-slate-50 border-slate-200 rounded-xl pr-4 !pl-12 py-2.5"
+                            placeholder="Buscar Item LC116...">
+                    </div>
+                    <mat-autocomplete #autoLc116="matAutocomplete" [displayWith]="displayFiscal"
+                        (optionSelected)="configForm.patchValue({ itemLc116Padrao: $event.option.value.id })">
+                        <mat-option *ngFor="let lc of lc116List" [value]="lc">{{ lc.label }}</mat-option>
+                    </mat-autocomplete>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Alíquota ISS (%)</label>
+                    <p-inputNumber formControlName="aliquotaPadrao" mode="decimal" [minFractionDigits]="2"
+                        [maxFractionDigits]="2" suffix=" %"
+                        inputStyleClass="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-right font-bold text-amber-600">
+                    </p-inputNumber>
+                </div>
+
+                <div class="lg:col-span-4 mt-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Informações Complementares
+                        Fixas</label>
                     <textarea formControlName="infoComplementarPadrao"
-                        class="field-input w-full min-h-[100px] p-3 resize-y"
-                        placeholder="Ex: Empresa enquadrada no Simples Nacional. Pagamento via PIX CHAVE X."></textarea>
+                        class="field-input w-full min-h-[100px] bg-slate-50 border-slate-200 rounded-xl p-4 resize-y"
+                        placeholder="Ex: Empresa enquadrada no Simples Nacional..."></textarea>
                 </div>
             </div>
-        </mat-card>
+        </div>
 
-        <!-- Automações: Email -->
-        <mat-card class="!rounded-2xl !border-0 !shadow-sm overflow-hidden"
+        <!-- Automação de E-mail -->
+        <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-8"
             [class.opacity-50]="!configForm.get('ativarNfse')?.value">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
-                    <mat-icon class="text-emerald-500 text-[18px]">mail_lock</mat-icon>
+            <div class="px-8 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-widest">
+                    <i class="pi pi-envelope text-indigo-500"></i>
                     Automação de E-mail
                 </h2>
 
                 <!-- Toggle Enviar Email -->
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" formControlName="enviarEmail" class="sr-only peer">
-                    <div
-                        class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[100%] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500">
-                    </div>
-                    <span class="ml-2 text-sm font-bold text-slate-600">Envio Automático</span>
-                </label>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Envio Automático</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" formControlName="enviarEmail" class="sr-only peer">
+                        <div
+                            class="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500">
+                        </div>
+                    </label>
+                </div>
             </div>
 
-            <div class="p-6 md:p-8 space-y-6" *ngIf="configForm.get('enviarEmail')?.value">
-                <div class="mb-2.5">
-                    <label class="field-label">Assunto do E-mail</label>
-                    <input type="text" formControlName="assuntoEmail" class="field-input font-semibold text-slate-800"
+            <div class="p-8 space-y-6" *ngIf="configForm.get('enviarEmail')?.value">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Assunto do E-mail</label>
+                    <input type="text" formControlName="assuntoEmail"
+                        class="field-input w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 font-semibold"
                         placeholder="Ex: Sua Nota Fiscal de Serviço">
                 </div>
 
-                <div class="mb-2.5">
-                    <label class="field-label">Mensagem do E-mail</label>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Mensagem do E-mail</label>
                     <textarea formControlName="mensagemEmail"
-                        class="field-input w-full min-h-[120px] p-4 resize-y bg-slate-50 italic"
-                        placeholder="Prezado cliente, sua nota fiscal foi emitida. O arquivo PDF encontra-se em anexo."></textarea>
-                    <p class="text-xs text-slate-400 mt-2 font-medium">Você pode usar variáveis no futuro como
-                        <span ngNonBindable>{{nome_cliente}}</span>.
-                    </p>
+                        class="field-input w-full min-h-[120px] bg-slate-50 border-slate-200 rounded-xl p-4 resize-y italic"
+                        placeholder="Prezado cliente, sua nota fiscal foi emitida..."></textarea>
                 </div>
             </div>
-        </mat-card>
+        </div>
 
     </form>
 
-    <!-- Skeleton Loader (Fallback visual enquanto carrega na primeira vez) -->
+    <!-- Skeleton Loader -->
     <div *ngIf="isLoading" class="space-y-6 animate-pulse mt-6">
         <div class="h-64 bg-slate-200 rounded-2xl w-full"></div>
         <div class="h-64 bg-slate-200 rounded-2xl w-full"></div>

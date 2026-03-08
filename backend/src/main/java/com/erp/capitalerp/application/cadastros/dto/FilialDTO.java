@@ -12,6 +12,15 @@ public class FilialDTO {
     private String inscricaoEstadual;
     private String inscricaoMunicipal;
     private String crt;
+    private String tenantIdentifier;
+    private String cep;
+    private String logradouro;
+    private String numero;
+    private String complemento;
+    private String bairro;
+    private String cidade;
+    private String estado;
+    private String ibge;
     private Boolean isMatriz;
     private Boolean ativo;
 
@@ -26,6 +35,15 @@ public class FilialDTO {
         this.inscricaoEstadual = filial.getInscricaoEstadual();
         this.inscricaoMunicipal = filial.getInscricaoMunicipal();
         this.crt = filial.getCrt();
+        this.tenantIdentifier = filial.getTenantIdentifier();
+        this.cep = filial.getCep();
+        this.logradouro = filial.getLogradouro();
+        this.numero = filial.getNumero();
+        this.complemento = filial.getComplemento();
+        this.bairro = filial.getBairro();
+        this.cidade = filial.getCidade();
+        this.estado = filial.getEstado();
+        this.ibge = filial.getIbge();
         this.isMatriz = filial.getIsMatriz();
         this.ativo = filial.getAtivo();
     }
@@ -84,6 +102,78 @@ public class FilialDTO {
 
     public void setCrt(String crt) {
         this.crt = crt;
+    }
+
+    public String getTenantIdentifier() {
+        return tenantIdentifier;
+    }
+
+    public void setTenantIdentifier(String tenantIdentifier) {
+        this.tenantIdentifier = tenantIdentifier;
+    }
+
+    public String getCep() {
+        return cep;
+    }
+
+    public void setCep(String cep) {
+        this.cep = cep;
+    }
+
+    public String getLogradouro() {
+        return logradouro;
+    }
+
+    public void setLogradouro(String logradouro) {
+        this.logradouro = logradouro;
+    }
+
+    public String getNumero() {
+        return numero;
+    }
+
+    public void setNumero(String numero) {
+        this.numero = numero;
+    }
+
+    public String getComplemento() {
+        return complemento;
+    }
+
+    public void setComplemento(String complemento) {
+        this.complemento = complemento;
+    }
+
+    public String getBairro() {
+        return bairro;
+    }
+
+    public void setBairro(String bairro) {
+        this.bairro = bairro;
+    }
+
+    public String getCidade() {
+        return cidade;
+    }
+
+    public void setCidade(String cidade) {
+        this.cidade = cidade;
+    }
+
+    public String getEstado() {
+        return estado;
+    }
+
+    public void setEstado(String estado) {
+        this.estado = estado;
+    }
+
+    public String getIbge() {
+        return ibge;
+    }
+
+    public void setIbge(String ibge) {
+        this.ibge = ibge;
     }
 
     public Boolean getIsMatriz() {

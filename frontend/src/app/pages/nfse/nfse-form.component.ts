@@ -10,6 +10,10 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { NfseService, NotaFiscalServico } from '../../core/services/nfse.service';
 import { ClienteService, Cliente } from '../../core/services/cadastros/cliente.service';
 import { environment } from '../../../environments/environment';
+import { NgxMaskDirective, NgxMaskPipe } from 'ngx-mask';
+import { FilialService } from '../../core/services/filial.service';
+import { Filial } from '../../core/models/filial.model';
+import { ConfiguracaoNfseService } from '../../core/services/configuracoes/configuracao-nfse.service';
 
 interface FiscalOpt { codigo: string; descricao: string; }
 interface ServicoOpt { id: string; nome: string; codigoCnae?: string; itemLc116?: string; codigoNbs?: string; aliquotaIss?: number; descricaoNota?: string; preco?: number; }
@@ -17,7 +21,7 @@ interface ServicoOpt { id: string; nome: string; codigoCnae?: string; itemLc116?
 @Component({
   selector: 'app-nfse-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, InputNumberModule],
+  imports: [CommonModule, FormsModule, InputNumberModule, NgxMaskDirective, NgxMaskPipe],
   template: `
     <div class="form-page">
 
@@ -91,7 +95,7 @@ interface ServicoOpt { id: string; nome: string; codigoCnae?: string; itemLc116?
                     @for (c of clientesDropdown(); track c.id) {
                       <div class="dropdown-item" (click)="selecionarCliente(c)">
                         <span class="item-nome">{{ c.razaoSocial || c.name + ' ' + (c.lastName || '') }}</span>
-                        <span class="item-doc">{{ c.cpf }}</span>
+                        <span class="item-doc">{{ (c.cpf || '') | mask: 'CPF_CNPJ' }}</span>
                       </div>
                     }
                   </div>
@@ -340,13 +344,11 @@ interface ServicoOpt { id: string; nome: string; codigoCnae?: string; itemLc116?
           </div>
           <div class="total-col">
             <label>Alíquota ISS (%)</label>
-            <div class="money-box">
-              <input type="text" inputmode="decimal"
-                [value]="form.aliquotaIss || ''"
-                (input)="onAliquotaInput($event)"
-                placeholder="0,00"
-                maxlength="6">
-              <span class="suffix">%</span>
+            <div class="money-box p-inputnumber-wrapper">
+              <p-inputNumber [(ngModel)]="form.aliquotaIss" (ngModelChange)="recalcular()"
+                mode="decimal" [minFractionDigits]="2" [maxFractionDigits]="2" suffix=" %"
+                styleClass="w-full" inputStyleClass="money-p-input text-right" placeholder="0,00 %">
+              </p-inputNumber>
             </div>
           </div>
           <div class="total-col result-col">
@@ -667,6 +669,8 @@ export class NfseFormComponent implements OnInit {
   private router = inject(Router);
   private snackBar = inject(MatSnackBar);
   private http = inject(HttpClient);
+  private filialService = inject(FilialService);
+  private configNfseService = inject(ConfiguracaoNfseService);
 
   private fiscalUrl = `${environment.apiUrl}/api/v1/fiscal-data`;
   private servicosUrl = `${environment.apiUrl}/api/v1/servicos`;
@@ -712,8 +716,8 @@ export class NfseFormComponent implements OnInit {
     dataEmissao: new Date().toISOString().split('T')[0],
     dataCompetencia: new Date().toISOString().split('T')[0],
     dataVencimento: new Date().toISOString().split('T')[0],
-    ufPrestacao: 'DF',
-    aliquotaIss: 2.01,
+    ufPrestacao: '',
+    aliquotaIss: 0,
     valorServicos: 0,
     valorDesconto: 0,
     issRetido: false,
@@ -744,10 +748,115 @@ export class NfseFormComponent implements OnInit {
     }
 
     this.carregarServicos();
-    this.carregarMunicipiosPorUf(this.form.ufPrestacao || 'DF');
+
     if (this.notaId) {
       this.carregarNota();
+    } else {
+      this.carregarDadosFilialPadrao();
+      this.carregarConfiguracaoPadraoNfse();
     }
+  }
+
+  private carregarConfiguracaoPadraoNfse(): void {
+    this.configNfseService.getConfiguracao().subscribe({
+      next: (config) => {
+        // CNAE Padrão
+        if (config.cnaePadrao && !this.form.codigoCnae) {
+          this.form.codigoCnae = config.cnaePadrao;
+          this.cnaeBusca = config.cnaePadrao;
+          this.cnaeSelecionadoDesc = 'CNAE Padrão Configurado';
+          
+          // Busca descrição real para o label
+          const params = new HttpParams().set('search', config.cnaePadrao);
+          this.http.get<any[]>(`${this.fiscalUrl}/cnaes`, { params }).subscribe({
+            next: (res) => {
+              if (res.length > 0) {
+                this.cnaeSelecionadoDesc = res[0].label || res[0].descricao || res[0].description || config.cnaePadrao!;
+              }
+            }
+          });
+        }
+        
+        // NBS Padrão
+        if (config.nbsPadrao && !this.form.codigoNbs) {
+          const nbsCode = config.nbsPadrao;
+          this.form.codigoNbs = nbsCode;
+          this.nbsBusca = nbsCode;
+          this.nbsSelecionadoDesc = 'NBS Padrão Configurado';
+          
+          // Busca descrição real para o label
+          const params = new HttpParams().set('search', nbsCode);
+          this.http.get<any[]>(`${this.fiscalUrl}/nbs`, { params }).subscribe({
+            next: (res) => {
+              if (res.length > 0) {
+                this.nbsSelecionadoDesc = res[0].label || res[0].descricao || res[0].description || nbsCode;
+              }
+            }
+          });
+
+          // Se tiver NBS, busca os itens LC116 agora mesmo
+          this.http.get<any[]>(`${this.fiscalUrl}/lc116-by-nbs`, { params: new HttpParams().set('nbsCodigo', nbsCode) }).subscribe({
+            next: (res) => {
+              const opts = res.map(r => ({ codigo: r.id || r.codigo || r.code, descricao: r.label || r.descricao || r.description || '' }));
+              this.lc116Opts.set(opts);
+            }
+          });
+        }
+
+        // LC116 Padrão - Se não foi preenchido por NBS ou se já estava no config
+        if (config.itemLc116Padrao && !this.form.itemLc116) {
+          const lcCode = config.itemLc116Padrao;
+          this.form.itemLc116 = lcCode;
+          
+          // Carrega e garante o item padrão no select
+          const params = new HttpParams().set('search', lcCode);
+          this.http.get<any[]>(`${this.fiscalUrl}/lc116`, { params }).subscribe({
+            next: (res) => {
+              const opts = res.map(r => ({ codigo: r.id || r.codigo || r.code, descricao: r.label || r.descricao || r.description || '' }));
+              if (!opts.find(o => o.codigo === lcCode)) {
+                opts.unshift({ codigo: lcCode, descricao: 'Item Padrão Configurado' });
+              }
+              // Se já temos opções por causa do NBS, apenas unimos
+              const current = this.lc116Opts();
+              if (current.length > 0) {
+                 const merged = [...current];
+                 if (!merged.find(o => o.codigo === lcCode)) merged.unshift(opts[0]);
+                 this.lc116Opts.set(merged);
+              } else {
+                 this.lc116Opts.set(opts);
+              }
+            }
+          });
+        }
+
+        // Alíquota Padrão
+        if (config.aliquotaPadrao && !this.form.aliquotaIss) {
+          this.form.aliquotaIss = config.aliquotaPadrao;
+          this.recalcular();
+        }
+      }
+    });
+  }
+
+  private carregarDadosFilialPadrao(): void {
+    this.filialService.listarTodas().subscribe({
+      next: (filiais) => {
+        // Padrão: usa a primeira filial disponível ou a marcada como matriz
+        const filial = filiais.find(f => f.isMatriz) || filiais[0];
+        if (filial) {
+          this.form.ufPrestacao = filial.estado || '';
+          this.form.municipioIbge = filial.ibge || '';
+
+          if (filial.cidade && filial.estado) {
+            this.cidadeNomeSelecionado = `${filial.cidade} - ${filial.estado}`;
+          }
+
+          if (this.form.ufPrestacao) {
+            this.carregarMunicipiosPorUf(this.form.ufPrestacao);
+          }
+        }
+      }
+    });
   }
 
   // ─── Carregamento ─────────────────────────────────────────────────────────
@@ -1018,20 +1127,7 @@ export class NfseFormComponent implements OnInit {
     this.nbsDropdown.set([]);
   }
 
-  onAliquotaInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    // Remove tudo que não for número ou ponto/vírgula decimal
-    let raw = input.value.replace(/[^0-9.,]/g, '').replace(',', '.');
-    // Garante só uma vírgula decimal
-    const parts = raw.split('.');
-    if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
-    // Limita a 2 casas decimais e max 100
-    const parsed = parseFloat(raw);
-    if (!isNaN(parsed) && parsed > 100) raw = '100';
-    input.value = raw;
-    this.form.aliquotaIss = parseFloat(raw) || 0;
-    this.recalcular();
-  }
+
 
   onLc116Change(): void {
     // Ao selecionar LC116, podemos buscar descrição adicional se necessário
@@ -1096,12 +1192,11 @@ export class NfseFormComponent implements OnInit {
     // Preenche LC116
     if (s.itemLc116) {
       this.form.itemLc116 = s.itemLc116;
-      // Carrega a descrição do LC116 para exibir no select
+      // Força a atualização do select de LC116 com o dado do serviço selecionado
       const params = new HttpParams().set('search', s.itemLc116);
       this.http.get<any[]>(`${this.fiscalUrl}/lc116`, { params }).subscribe({
         next: (res) => {
           const opts = res.map(r => ({ codigo: r.id || r.codigo || r.code, descricao: r.label || r.descricao || r.description || '' }));
-          // Garante que o item selecionado apareça no select
           if (!opts.find(o => o.codigo === s.itemLc116)) {
             opts.unshift({ codigo: s.itemLc116!, descricao: 'Serviço selecionado' });
           }

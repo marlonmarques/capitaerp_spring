@@ -59,4 +59,7 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
         /** Lista simples para comboboxes (id + nome). */
         @Query("SELECT p FROM Produto p WHERE p.deletadoEm IS NULL AND p.status = 'ATIVO' ORDER BY p.nome")
         List<Produto> findAllAtivos();
+
+        @Query("SELECT p FROM Produto p LEFT JOIN FETCH p.grupoTributario WHERE p.id IN :ids")
+        List<Produto> findAllByIdInWithTributacao(@Param("ids") java.util.Collection<UUID> ids);
 }

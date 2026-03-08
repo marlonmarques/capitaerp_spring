@@ -11,6 +11,7 @@ public class ConfiguracaoFiscalGeralDTO {
     private String ambienteProdutos;
     private Integer regimeTributario;
     private BigDecimal faturamentoAnual;
+    private UUID filialId;
     private String cnaePrincipal;
 
     // Optional flag for the frontend to know if there's a certificate saved without
@@ -31,6 +32,7 @@ public class ConfiguracaoFiscalGeralDTO {
             this.regimeTributario = entity.getRegimeTributario();
             this.faturamentoAnual = entity.getFaturamentoAnual();
             this.cnaePrincipal = entity.getCnaePrincipal();
+            this.filialId = entity.getFilialId();
             this.temCertificado = (entity.getCertificado() != null && !entity.getCertificado().isEmpty());
         }
     }
@@ -97,6 +99,14 @@ public class ConfiguracaoFiscalGeralDTO {
 
     public void setCnaePrincipal(String cnaePrincipal) {
         this.cnaePrincipal = cnaePrincipal;
+    }
+
+    public UUID getFilialId() {
+        return filialId;
+    }
+
+    public void setFilialId(UUID filialId) {
+        this.filialId = filialId;
     }
 
     public Boolean getTemCertificado() {

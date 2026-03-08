@@ -47,8 +47,20 @@ public class PdvService {
         pdv.setTenantIdentifier(tenant);
         pdv.setFilial(filial);
         pdv.setNome(dto.getNome());
-        pdv.setSerieNfce(dto.getSerieNfce());
-        pdv.setNumeroAtualNfce(dto.getNumeroAtualNfce() != null ? dto.getNumeroAtualNfce() : 1);
+
+        // Blindagem: Se já emitiu nota (numero > 1), não permite alterar série ou número
+        if (dto.getId() != null && pdv.getNumeroAtualNfce() > 1) {
+            if (!pdv.getSerieNfce().equals(dto.getSerieNfce())) {
+                throw new RuntimeException("Série não pode ser alterada após emissão de notas.");
+            }
+            if (!pdv.getNumeroAtualNfce().equals(dto.getNumeroAtualNfce())) {
+                throw new RuntimeException("O contador de notas não pode ser alterado manualmente após o início das emissões.");
+            }
+        } else {
+            pdv.setSerieNfce(dto.getSerieNfce());
+            pdv.setNumeroAtualNfce(dto.getNumeroAtualNfce() != null ? dto.getNumeroAtualNfce() : 1);
+        }
+
         pdv.setAtivo(dto.getAtivo() != null ? dto.getAtivo() : true);
 
         return new PdvDTO(repository.save(pdv));

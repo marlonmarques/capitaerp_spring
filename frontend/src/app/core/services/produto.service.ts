@@ -118,6 +118,25 @@ export interface Produto {
     deletadoEm?: string;
 }
 
+export interface ProdutoBuscaVendaDTO {
+    produtoId: string;
+    variacaoId: string | null;
+    codigo: string;
+    nome: string;
+    precoVenda: number;
+    estoqueAtual: number;
+    unidadeMedida: string;
+    ncm: string;
+    cfop: string;
+    icmsCst: string;
+    icmsAliq: number;
+    pisCst: string;
+    pisAliq: number;
+    cofinsCst: string;
+    cofinsAliq: number;
+    origem: number;
+}
+
 export interface PageResponse<T> {
     content: T[];
     totalElements: number;
@@ -159,6 +178,12 @@ export class ProdutoService {
 
     listarAtivos(): Observable<Produto[]> {
         return this.http.get<Produto[]>(`${this.apiUrl}/ativos`);
+    }
+
+    buscarParaVenda(busca: string): Observable<ProdutoBuscaVendaDTO[]> {
+        return this.http.get<ProdutoBuscaVendaDTO[]>(`${this.apiUrl}/venda`, {
+            params: new HttpParams().set('busca', busca)
+        });
     }
 
     inserir(dto: Produto): Observable<Produto> {

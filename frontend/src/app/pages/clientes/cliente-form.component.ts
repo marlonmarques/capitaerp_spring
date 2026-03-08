@@ -259,9 +259,8 @@ export class ClienteFormComponent implements OnInit {
     }
 
     processarUfParaMunicipios(siglaUf: string): void {
-        const estado = this.estados().find(e => e.sigla === siglaUf);
-        if (estado && !this.todasCidades[siglaUf]) {
-            this.ibgeService.getMunicipiosPorEstado(estado.id).subscribe(m => {
+        if (!this.todasCidades[siglaUf]) {
+            this.ibgeService.getMunicipiosPorEstado(siglaUf).subscribe(m => {
                 this.todasCidades[siglaUf] = m;
             });
         }

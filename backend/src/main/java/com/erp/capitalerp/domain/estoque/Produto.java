@@ -130,10 +130,12 @@ public class Produto extends BaseEntity {
 
     // ─── Relacionamentos ──────────────────────────────────────────────────────
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fornecedor_id")
     private Fornecedor fornecedorPrincipal;
@@ -142,6 +144,7 @@ public class Produto extends BaseEntity {
      * Grupo tributário centralizado. Se preenchido, sobrepõe os campos de
      * tributação legado.
      */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "grupo_tributario_id")
     private GrupoTributario grupoTributario;
@@ -157,6 +160,7 @@ public class Produto extends BaseEntity {
     @Column(nullable = false)
     private Boolean favorito = false;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @BatchSize(size = 30)
     @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProdutoVariacao> variacoes = new ArrayList<>();

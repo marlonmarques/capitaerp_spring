@@ -42,6 +42,12 @@ public class Cliente {
     @Column(name = "reter_iss")
     private Boolean reterIss;
 
+    @Column(name = "tenant_identifier", length = 20)
+    private String tenantIdentifier;
+
+    @Column(name = "filial_id")
+    private java.util.UUID filialId;
+
     @Column(columnDefinition = "TEXT")
     private String notaInterna;
 
@@ -238,5 +244,21 @@ public class Cliente {
 
     public void setNotaInterna(String notaInterna) {
         this.notaInterna = notaInterna;
+    }
+
+    public String getTenantIdentifier() {
+        return tenantIdentifier;
+    }
+
+    public void setTenantIdentifier(String tenantIdentifier) {
+        this.tenantIdentifier = tenantIdentifier;
+    }
+
+    public java.util.UUID getFilialId() {
+        return filialId;
+    }
+
+    public void setFilialId(java.util.UUID filialId) {
+        this.filialId = filialId;
     }
 }

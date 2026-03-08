@@ -216,7 +216,7 @@ import { LoadingService } from '../../core/services/loading.service';
 
           <!-- Header -->
           <div class="mb-10 fade-in-up">
-            <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Bem-vindo de volta 👋</h2>
+            <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Bem-vindo de volta </h2>
             <p class="text-slate-500 font-medium">Entre com suas credenciais para continuar</p>
           </div>
 

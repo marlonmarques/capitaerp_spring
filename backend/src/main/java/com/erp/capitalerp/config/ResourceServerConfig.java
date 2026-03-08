@@ -37,6 +37,11 @@ public class ResourceServerConfig {
 		return new TenantInterceptor();
 	}
 
+	@Bean
+	public com.erp.capitalerp.config.shared.UserLoggingFilter userLoggingFilter() {
+		return new com.erp.capitalerp.config.shared.UserLoggingFilter();
+	}
+
 	/**
 	 * Registra o TenantInterceptor com a maior prioridade possível, garantindo que
 	 * o tenant seja resolvido ANTES do filtro de segurança do Spring Authorization
@@ -46,6 +51,14 @@ public class ResourceServerConfig {
 	FilterRegistrationBean<TenantInterceptor> tenantFilterRegistration() {
 		FilterRegistrationBean<TenantInterceptor> bean = new FilterRegistrationBean<>(tenantInterceptor());
 		bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+		bean.addUrlPatterns("/*");
+		return bean;
+	}
+
+	@Bean
+	FilterRegistrationBean<com.erp.capitalerp.config.shared.UserLoggingFilter> userLoggingFilterRegistration() {
+		FilterRegistrationBean<com.erp.capitalerp.config.shared.UserLoggingFilter> bean = new FilterRegistrationBean<>(userLoggingFilter());
+		bean.setOrder(Ordered.LOWEST_PRECEDENCE);
 		bean.addUrlPatterns("/*");
 		return bean;
 	}

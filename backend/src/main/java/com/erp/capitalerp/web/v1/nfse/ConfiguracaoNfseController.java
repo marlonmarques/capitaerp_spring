@@ -18,8 +18,8 @@ public class ConfiguracaoNfseController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('OPERATOR', 'ADMIN')")
-    public ResponseEntity<ConfiguracaoNfseDTO> getConfig() {
-        return ResponseEntity.ok(service.buscarConfiguracao());
+    public ResponseEntity<ConfiguracaoNfseDTO> getConfig(@RequestParam(required = false) java.util.UUID filialId) {
+        return ResponseEntity.ok(service.buscarConfiguracao(filialId));
     }
 
     @PutMapping

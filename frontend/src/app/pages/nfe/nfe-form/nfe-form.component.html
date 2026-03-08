@@ -1,0 +1,522 @@
+<div class="max-w-[1400px] mx-auto animate-in fade-in duration-500 py-6 px-4">
+  <app-page-header title="Emissão NF-e" subtitle="Cadastro e transmissão de Nota Fiscal de Produtos (Modelo 55)">
+    <div actions class="flex items-center gap-2">
+      <span class="status-badge-header" [class]="'badge-' + statusNota.toLowerCase()" *ngIf="isEdit">
+        {{ statusNota }}
+      </span>
+
+      <button pButton label="Voltar" icon="pi pi-arrow-left" class="p-button-text p-button-secondary"
+        routerLink="/contabilidade/nfe"></button>
+
+      <ng-container *ngIf="!isReadOnly">
+        <button pButton label="Salvar Rascunho" icon="pi pi-save" class="p-button-outlined p-button-primary"
+          [loading]="loading" (click)='salvar()'></button>
+        <button pButton label="Transmitir NFe" icon="pi pi-send" class="p-button-success" [loading]="loading"
+          (click)='transmitir()'></button>
+      </ng-container>
+
+      <ng-container *ngIf="isReadOnly && statusNota === 'AUTORIZADA'">
+        <button pButton label="Gerar DANFE" icon="pi pi-print" class="p-button-outlined p-button-success"></button>
+        <button pButton label="Consultar" icon="pi pi-sync" class="p-button-outlined p-button-info"
+          (click)="carregarNota(form.get('id')?.value)"></button>
+      </ng-container>
+    </div>
+  </app-page-header>
+
+  <!-- ALERTA DE REJEIÇÃO / ERRO SEFAZ -->
+  <div class="mb-6 animate-in fade-in slide-in-from-top-4" *ngIf="statusNota === 'REJEITADA' && mensagemRetorno">
+    <!-- ... (mesmo conteúdo do alerta) ... -->
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl shadow-sm flex items-start gap-4">
+      <div class="bg-red-100 p-2 rounded-lg">
+        <i class="pi pi-times-circle text-red-600 text-xl"></i>
+      </div>
+      <div class="flex-1">
+        <h4 class="text-red-900 font-bold mb-1">Nota Rejeitada pela SEFAZ</h4>
+        <p class="text-red-700 text-sm leading-relaxed">{{ mensagemRetorno }}</p>
+        <div class="mt-2 text-xs text-red-600 font-medium">
+          <i class="pi pi-info-circle mr-1"></i> Corrija os dados abaixo e clique em 'Transmitir' novamente para reenviar.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AVISO DE SOMENTE LEITURA -->
+  <div class="mb-6" *ngIf="isReadOnly">
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-xl shadow-sm flex items-center gap-4">
+      <i class="pi pi-lock text-blue-600 text-xl"></i>
+      <div>
+        <p class="text-blue-800 font-medium text-sm">Modo de Visualização: Esta nota está {{ statusNota.toLowerCase() }} e
+          não permite alterações.</p>
+      </div>
+    </div>
+  </div>
+  <div class="card bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden mb-10">
+  <form [formGroup]="form">
+    <p-tabView [activeIndex]="activeTabIndex" (onChange)="tentarMudarTab($event)">
+      <!-- TAB 1: DADOS GERAIS E CLIENTE -->
+      <p-tabPanel header="Geral & Cliente" leftIcon="pi pi-info-circle mr-2">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-2">
+
+          <!-- Seção Cabeçalho -->
+          <div class="col-span-12 mb-4">
+            <h3 class="text-lg font-bold text-slate-800 border-b pb-2 flex items-center">
+              <i class="pi pi-id-card mr-2 text-blue-500"></i> Identificação da Nota
+            </h3>
+          </div>
+
+          <div class="md:col-span-5 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Filial Emitente</label>
+            <p-dropdown [options]="filiais" formControlName="filialId" optionLabel="razaoSocial" optionValue="id"
+              placeholder="Selecione a Filial" styleClass="w-full" dropdownIcon="pi pi-chevron-down"></p-dropdown>
+          </div>
+
+          <div class="md:col-span-4 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Operação Fiscal (Natureza)</label>
+            <p-dropdown [options]="posicoesFiscais" formControlName="posicaoFiscalId" optionLabel="nome"
+              optionValue="id" placeholder="Selecione a Operação" styleClass="w-full"
+              (onChange)="onPosicaoFiscalChange($event)" [filter]="true" filterBy="nome" appendTo="body"></p-dropdown>
+            <input type="hidden" formControlName="naturezaOperacao">
+          </div>
+
+          <div class="md:col-span-3 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Número</label>
+            <div class="relative">
+              <input pInputText [value]="form.get('numero')?.value || 'AUTOMÁTICO'" 
+                     class="w-full bg-slate-50 font-bold text-blue-600" readonly />
+              <i class="pi pi-lock absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+            </div>
+            <span class="text-[10px] text-slate-400">Modelo 55 · Série 1</span>
+          </div>
+
+          <div class="md:col-span-4 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Finalidade da Emissão</label>
+            <p-dropdown [options]="finalidades" formControlName="finalidade" placeholder="Selecione a Finalidade"
+              styleClass="w-full"></p-dropdown>
+          </div>
+
+          <div class="md:col-span-4 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Data de Emissão</label>
+            <p-calendar formControlName="dataEmissao" dateFormat="dd/mm/yy" [showTime]="true" styleClass="w-full"
+              appendTo="body"></p-calendar>
+          </div>
+
+          <div class="md:col-span-4 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Data Saída/Entrada</label>
+            <p-calendar formControlName="dataSaidaEntrada" dateFormat="dd/mm/yy" [showTime]="true" styleClass="w-full"
+              appendTo="body"></p-calendar>
+          </div>
+
+          <div class="col-span-12 field" *ngIf="form.get('finalidade')?.value !== 'NORMAL'">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Chave NF-e Referenciada (44
+              dígitos)</label>
+            <input pInputText formControlName="chaveReferenciada" class="w-full font-mono" maxlength="44"
+              placeholder="Para Devolução, Ajuste ou Complementar" />
+          </div>
+
+          <!-- Seção Cliente -->
+          <div class="col-span-12 mt-6 mb-4">
+            <h3 class="text-lg font-bold text-slate-800 border-b pb-2 flex items-center">
+              <i class="pi pi-user mr-2 text-emerald-500"></i> Destinatário / Cliente
+            </h3>
+          </div>
+
+          <div class="col-span-12 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Buscar Cliente (Razão Social / Nome
+              Fantasia / CNPJ)</label>
+            <p-autoComplete formControlName="cliente" [suggestions]="filteredClientes"
+              (completeMethod)="searchClientes($event)" (onSelect)="onSelectCliente($event)" field="displayName"
+              placeholder="Comece a digitar o nome do cliente..." styleClass="w-full" inputStyleClass="w-full"
+              [dropdown]="true" appendTo="body" dropdownIcon="pi pi-chevron-down" [forceSelection]="true">
+              <ng-template let-cliente pTemplate="item">
+                <div class="flex flex-col">
+                  <span class="font-bold">{{ cliente.razaoSocial }}</span>
+                  <span class="text-xs text-slate-500">{{ cliente.cpf || cliente.cnpj }} | {{ cliente.name }} {{ cliente.lastName || '' }}</span>
+                </div>
+              </ng-template>
+            </p-autoComplete>
+          </div>
+        </div>
+      </p-tabPanel>
+
+      <!-- TAB 2: ITENS / PRODUTOS -->
+      <p-tabPanel header="Itens do Pedido" leftIcon="pi pi-shopping-cart mr-2">
+        <div class="p-2">
+          <!-- Pesquisa de Produto -->
+          <div class="bg-slate-50 p-6 rounded-xl border border-dashed border-slate-300 mb-6 font-sans"
+            *ngIf="!isReadOnly">
+            <label class="block text-sm font-bold text-slate-700 mb-2">Adicionar Produto à Nota</label>
+            <div class="flex gap-3">
+              <p-autoComplete [suggestions]="filteredProdutos" (completeMethod)="searchProdutos($event)"
+                (onSelect)="adicionarItem($event.value)" field="nome"
+                placeholder="Pesquisar por nome do produto ou código de barras..." class="flex-1"
+                inputStyleClass="w-full" [showClear]="true" #prodSearch [disabled]="isReadOnly">
+                <ng-template let-prod pTemplate="item">
+                  <div class="flex justify-between items-center w-full">
+                    <div class="flex flex-col gap-0.5">
+                      <div class="font-bold flex items-center gap-2">
+                        {{ prod.nome }}
+                        <span *ngIf="prod.variacaoId"
+                          class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded-full border border-blue-100">VARIAÇÃO</span>
+                      </div>
+                      <div class="text-xs text-slate-500">
+                        Cód: <span class="font-mono">{{ prod.codigo }}</span> |
+                        Estoque: <span [class.text-red-500]="prod.estoqueAtual <= 0"
+                          class="font-bold">{{ prod.estoqueAtual }} {{ prod.unidadeMedida }}</span>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-emerald-600 font-bold">{{ prod.precoVenda | currency:'BRL' }}</div>
+                    </div>
+                  </div>
+                </ng-template>
+              </p-autoComplete>
+              <button pButton label="Limpar" icon="pi pi-filter-slash" class="p-button-text p-button-secondary"
+                (click)="prodSearch.value = ''"></button>
+            </div>
+          </div>
+
+          <!-- Tabela de Itens -->
+          <p-table [value]="itens.controls" styleClass="p-datatable-sm" responsiveLayout="scroll">
+            <ng-template pTemplate="header">
+              <tr class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider">
+                <th style="width: 5%">#</th>
+                <th style="width: 45%">Produto</th>
+                <th style="width: 10%">Qtd</th>
+                <th style="width: 15%">
+                  <div class="flex items-center justify-between">
+                    Preço Unit.
+                    <button pButton [icon]="precoAutorizado ? 'pi pi-unlock' : 'pi pi-lock'"
+                      class="p-button-rounded p-button-text p-button-sm !p-0" [class.text-red-500]="!precoAutorizado"
+                      (click)="solicitarAutorizacaoPreco()" pTooltip="Autorizar Alteração de Preço">
+                    </button>
+                  </div>
+                </th>
+                <th style="width: 15%">Subtotal</th>
+                <th style="width: 10%">Ações</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-item let-i="rowIndex">
+              <tr [formGroup]="item" class="border-b transition-colors hover:bg-slate-50">
+                <td class="text-center font-mono text-slate-400 text-xs">{{ i + 1 }}</td>
+                <td>
+                  <div class="flex flex-col">
+                    <span class="font-semibold text-slate-800">{{ item.get('descricao')?.value }}</span>
+                    <span class="text-xs text-slate-500">NCM: {{ item.get('ncm')?.value }}</span>
+                  </div>
+                </td>
+                <td>
+                  <p-inputNumber formControlName="quantidadeComercial" mode="decimal" [minFractionDigits]="2"
+                    [maxFractionDigits]="3" inputStyleClass="w-full text-center p-1 border-slate-300 rounded"
+                    (onInput)="calcularTotais()"></p-inputNumber>
+                </td>
+                <td>
+                  <p-inputNumber formControlName="valorUnitarioComercial" mode="currency" currency="BRL" locale="pt-BR"
+                    inputStyleClass="w-full text-right p-1 border-slate-300 rounded" (onInput)="calcularTotais()">
+                  </p-inputNumber>
+                </td>
+                <td class="text-right font-bold text-slate-900">
+                  {{ item.get('valorLiquido')?.value | currency:'BRL' }}
+                </td>
+                <td class="text-center" *ngIf="!isReadOnly">
+                  <button pButton icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-text"
+                    (click)="removerItem(i)" pTooltip="Remover Item" [disabled]="isReadOnly"></button>
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="7" class="text-center p-12 text-slate-400">
+                  <i class="pi pi-box block text-4xl mb-2"></i>
+                  Nenhum produto adicionado à nota ainda.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </p-tabPanel>
+
+      <!-- TAB 3: TRANSPORTE -->
+      <p-tabPanel header="Transporte" leftIcon="pi pi-truck mr-2">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-2">
+          <div class="col-span-12 mb-2">
+            <h3 class="text-lg font-bold text-slate-800 border-b pb-2 flex items-center">
+              <i class="pi pi-map mr-2 text-blue-500"></i> Dados do Frete & Transportadora
+            </h3>
+          </div>
+
+          <div class="md:col-span-6 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Modalidade do Frete</label>
+            <p-dropdown [options]="freteModos" formControlName="modFrete" placeholder="Selecione"
+              styleClass="w-full"></p-dropdown>
+          </div>
+
+          <div class="md:col-span-12 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Buscar Transportadora Precadastrada</label>
+            <p-autoComplete [suggestions]="filteredTransportadoras" (completeMethod)="searchTransportadoras($event)"
+              (onSelect)="onSelectTransportadora($event.value)" field="razaoSocial"
+              placeholder="Pesquise por nome ou CNPJ da transportadora..." styleClass="w-full" inputStyleClass="w-full"
+              [dropdown]="true" appendTo="body">
+              <ng-template let-transp pTemplate="item">
+                <div class="flex flex-col">
+                  <span class="font-bold">{{ transp.razaoSocial }}</span>
+                  <span class="text-xs text-slate-500">{{ transp.cnpj }} | {{ transp.cidade }}/{{ transp.uf }}</span>
+                </div>
+              </ng-template>
+            </p-autoComplete>
+          </div>
+
+          <div class="md:col-span-8 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Nome/Razão Social (Manual)</label>
+            <input pInputText formControlName="transportadoraNome" class="w-full bg-slate-50" />
+          </div>
+
+          <div class="md:col-span-4 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">CNPJ/CPF (Manual)</label>
+            <input pInputText formControlName="transportadoraCnpjCpf" class="w-full bg-slate-50" />
+          </div>
+
+          <div class="md:col-span-3 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Placa Veículo</label>
+            <input pInputText formControlName="placaVeiculo" class="w-full" />
+          </div>
+
+          <div class="md:col-span-3 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">UF Veículo</label>
+            <input pInputText formControlName="placaUf" class="w-full" maxlength="2" />
+          </div>
+
+          <div class="md:col-span-3 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Qtd Volumes</label>
+            <p-inputNumber formControlName="quantidadeVolumes" class="w-full"></p-inputNumber>
+          </div>
+
+          <div class="md:col-span-3 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Espécie Volumes</label>
+            <input pInputText formControlName="especieVolumes" class="w-full" placeholder="Ex: CAIXA" />
+          </div>
+
+          <div class="md:col-span-6 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Peso Bruto Total (Kg)</label>
+            <p-inputNumber formControlName="pesoBrutoTotal" mode="decimal" [minFractionDigits]="3"
+              styleClass="w-full"></p-inputNumber>
+          </div>
+
+          <div class="md:col-span-6 field">
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Peso Líquido Total (Kg)</label>
+            <p-inputNumber formControlName="pesoLiquidoTotal" mode="decimal" [minFractionDigits]="3"
+              styleClass="w-full"></p-inputNumber>
+          </div>
+        </div>
+      </p-tabPanel>
+
+      <!-- TAB 3: PAGAMENTO E ADICIONAIS -->
+      <p-tabPanel header="Finanças & Notas" leftIcon="pi pi-wallet mr-2">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 p-2">
+
+          <!-- Lado Esquerdo: Acréscimos e Decréscimos -->
+          <div class="md:col-span-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+            <h3 class="text-sm font-black text-slate-800 uppercase tracking-tighter mb-4 flex items-center">
+              <i class="pi pi-plus-circle mr-2 text-blue-500"></i> Acréscimos e Descontos
+            </h3>
+            <div class="grid grid-cols-1 gap-3">
+              <div class="field">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Valor do Frete (+)</label>
+                <p-inputNumber formControlName="valorFrete" mode="currency" currency="BRL" locale="pt-BR"
+                  styleClass="w-full" (onInput)="calcularTotais()"></p-inputNumber>
+              </div>
+              <div class="field">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Valor do Seguro (+)</label>
+                <p-inputNumber formControlName="valorSeguro" mode="currency" currency="BRL" locale="pt-BR"
+                  styleClass="w-full" (onInput)="calcularTotais()"></p-inputNumber>
+              </div>
+              <div class="field">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Outras Despesas (+)</label>
+                <p-inputNumber formControlName="valorOutros" mode="currency" currency="BRL" locale="pt-BR"
+                  styleClass="w-full" (onInput)="calcularTotais()"></p-inputNumber>
+              </div>
+              <div class="field">
+                <label class="block text-xs font-bold text-slate-500 mb-1 text-red-500">Desconto Global (-)</label>
+                <div class="flex gap-2 items-center">
+                  <p-inputNumber formControlName="valorDesconto" mode="currency" currency="BRL" locale="pt-BR"
+                    styleClass="flex-1" (onInput)="calcularTotais()" [disabled]="!descontoAutorizado"></p-inputNumber>
+                  <button pButton [icon]="descontoAutorizado ? 'pi pi-lock-open' : 'pi pi-lock'"
+                    class="p-button-outlined p-button-sm" [class.p-button-danger]="!descontoAutorizado"
+                    (click)="solicitarAutorizacaoDesconto()" pTooltip="Autorizar Desconto (Supervisor)">
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6">
+              <h3 class="text-sm font-black text-slate-800 uppercase tracking-tighter mb-4 flex items-center">
+                <i class="pi pi-comment mr-2 text-amber-500"></i> Observações
+              </h3>
+              <div class="field mb-3">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Infs. Complementares</label>
+                <textarea pInputTextarea formControlName="informacoesComplementares" rows="3"
+                  class="w-full text-sm"></textarea>
+              </div>
+              <div class="field">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Fisco</label>
+                <textarea pInputTextarea formControlName="informacoesFisco" rows="2" class="w-full text-sm"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lado Direito: Pagamentos / Parcelamento -->
+          <div class="md:col-span-8">
+            <div class="flex justify-between items-center border-b pb-2 mb-4">
+              <h3 class="text-lg font-black text-slate-800 flex items-center">
+                <i class="pi pi-credit-card mr-2 text-emerald-500"></i> Pagamento e Parcelas
+              </h3>
+              <div class="flex gap-2" *ngIf="!isReadOnly">
+                <button pButton icon="pi pi-calendar-plus" label="A Vista"
+                  class="p-button-outlined p-button-sm p-button-success" (click)="gerarParcelas(1)"></button>
+                <button pButton icon="pi pi-th-large" label="Parcelar 3x" class="p-button-outlined p-button-sm"
+                  (click)="gerarParcelas(3)"></button>
+                <button pButton icon="pi pi-plus" label="Add Parcela" class="p-button-sm"
+                  (click)="adicionarPagamento()"></button>
+              </div>
+            </div>
+
+            <p-table [value]="pagamentos.controls" styleClass="p-datatable-sm" responsiveLayout="scroll">
+              <ng-template pTemplate="header">
+                <tr>
+                  <th>Vencimento</th>
+                  <th>Meio de Pagamento</th>
+                  <th class="text-right">Valor R$</th>
+                  <th class="w-12"></th>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-control let-i="rowIndex">
+                <tr [formGroup]="control">
+                  <td>
+                    <p-calendar formControlName="dataVencimento" dateFormat="dd/mm/yy" [showIcon]="true"
+                      styleClass="w-full" appendTo="body"></p-calendar>
+                  </td>
+                  <td>
+                    <p-dropdown [options]="[
+                        {label: '01 - Dinheiro', value: '01'},
+                        {label: '02 - Cheque', value: '02'},
+                        {label: '03 - Cartão de Crédito', value: '03'},
+                        {label: '04 - Cartão de Débito', value: '04'},
+                        {label: '15 - Boleto Bancário', value: '15'},
+                        {label: '17 - PIX', value: '17'},
+                        {label: '90 - Sem Pagamento', value: '90'},
+                        {label: '99 - Outros', value: '99'}
+                      ]" formControlName="tipoPagamento" styleClass="w-full" appendTo="body"></p-dropdown>
+                  </td>
+                  <td>
+                    <p-inputNumber formControlName="valorPagamento" mode="currency" currency="BRL" locale="pt-BR"
+                      inputStyleClass="w-full text-right font-bold"></p-inputNumber>
+                  </td>
+                  <td *ngIf="!isReadOnly">
+                    <button pButton icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-text"
+                      (click)="removerPagamento(i)" [disabled]="isReadOnly"></button>
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="footer">
+                <tr *ngIf="pagamentos.length > 0">
+                  <td colspan="2" class="text-right font-bold py-3">Total Pago:</td>
+                  <td class="text-right font-black text-blue-600">
+                    {{ getSomaPagamentos() | currency:'BRL' }}
+                  </td>
+                  <td></td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr>
+                  <td colspan="4" class="text-center p-8 text-slate-400 italic bg-slate-50">
+                    Nenhum pagamento informado. Use os botões acima para gerar.
+                  </td>
+                </tr>
+              </ng-template>
+            </p-table>
+
+            <div class="mt-4 p-4 rounded-xl border bg-amber-50 border-amber-100 flex items-center justify-between"
+              *ngIf="pagamentos.length > 0 && getDiferencaPagamentos() > 0.01">
+              <div class="flex items-center text-amber-800">
+                <i class="pi pi-exclamation-triangle mr-2 text-xl"></i>
+                <span class="text-sm font-bold">A soma das parcelas não confere com o total da nota!</span>
+              </div>
+              <div class="text-amber-900 font-mono text-xs">
+                Dif: {{ getDiferencaPagamentos() | currency:'BRL' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </p-tabPanel>
+
+      <!-- TAB 4: RESUMO E TRANSMISSÃO -->
+      <p-tabPanel header="Resumo Final" leftIcon="pi pi-check-square mr-2">
+        <div class="flex flex-col md:flex-row gap-10 p-4">
+
+          <div class="flex-1 bg-slate-50 p-8 rounded-3xl border border-slate-200">
+            <h4 class="text-xl font-black text-slate-800 mb-6 uppercase tracking-widest text-center">Resumo da Nota
+            </h4>
+
+            <div class="space-y-4 font-sans">
+              <div class="flex justify-between items-center text-slate-600">
+                <span>Subtotal Produtos</span>
+                <span class="font-bold">{{ form.get('valorTotalProdutos')?.value | currency:'BRL' }}</span>
+              </div>
+              <div class="flex justify-between items-center text-red-500">
+                <span>Total Descontos (-)</span>
+                <span class="font-bold">{{ form.get('valorDesconto')?.value | currency:'BRL' }}</span>
+              </div>
+              <div class="flex justify-between items-center text-slate-600">
+                <span>Acréscimos (Frete/Seguro/Outros) (+)</span>
+                <span class="font-bold">
+                  {{ ((form.get('valorFrete')?.value || 0) + (form.get('valorSeguro')?.value || 0) +
+                  (form.get('valorOutros')?.value || 0)) | currency:'BRL' }}
+                </span>
+              </div>
+              <div class="h-px bg-slate-300 my-4"></div>
+              <div class="flex justify-between items-center text-2xl font-black text-slate-900 border-t pt-4">
+                <span>Total da Nota</span>
+                <span class="text-emerald-600">{{ form.get('valorTotalNota')?.value | currency:'BRL' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="w-full md:w-1/3 flex flex-col justify-center items-center text-center p-6 border-2 border-dashed rounded-3xl"
+            [class]="isReadOnly ? 'border-slate-200 bg-slate-50' : 'border-emerald-200 bg-emerald-50'">
+
+            <ng-container *ngIf="!isReadOnly">
+              <i class="pi pi-verified text-6xl text-emerald-500 mb-4"></i>
+              <h4 class="text-lg font-bold text-emerald-900 mb-2 font-sans">Tudo Pronto para Emitir?</h4>
+              <p class="text-emerald-700 text-sm mb-6 font-sans">Ao transmitir agora, a nota será enviada para a SEFAZ
+                em ambiente de {{ form.get('ambiente')?.value }}.</p>
+              <button pButton label="Salvar e Emitir Agora" icon="pi pi-cloud-upload"
+                class="p-button-lg p-button-success w-full rounded-xl py-4 shadow-lg active:scale-95 transition-transform"
+                [loading]="loading" (click)='transmitir()'></button>
+              <p class="mt-4 text-xs text-slate-500 italic">Ou use o botão superior para apenas salvar o rascunho.</p>
+            </ng-container>
+
+            <ng-container *ngIf="isReadOnly">
+              <i class="pi pi-check-circle text-6xl text-blue-500 mb-4"></i>
+              <h4 class="text-lg font-bold text-slate-900 mb-2 font-sans">Nota Concluída</h4>
+              <p class="text-slate-600 text-sm mb-6 font-sans">Esta nota já foi processada e está no status
+                <strong>{{ statusNota }}</strong>.
+              </p>
+              <button pButton label="Visualizar Lista" icon="pi pi-list"
+                class="p-button-lg p-button-outlined w-full rounded-xl py-4 transition-transform text-indigo-700"
+                routerLink="/contabilidade/nfe"></button>
+            </ng-container>
+          </div>
+        </div>
+      </p-tabPanel>
+    </p-tabView>
+  </form>
+  </div>
+</div>
+
+
+<p-confirmDialog></p-confirmDialog>
+<app-auth-modal (onAuthorized)="handleAuthSuccess($event)"></app-auth-modal>
+
+<app-nfe-emissao-status *ngIf="showEmissaoStatus" [nfeId]="nfeIdParaEmissao" [nomeCliente]="nomeClienteParaEmissao"
+  [numeroNota]="numeroNotaParaEmissao" (finalizado)="onEmissaoFinalizada($event)"
+  (fechar)="showEmissaoStatus = false" />
