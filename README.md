@@ -1,64 +1,182 @@
-# Capital ERP - Migração para Spring Boot & Angular
+# 🏢 Capital ERP — Arquitetura SaaS Multi-Tenant com Spring Boot & Angular
 
-Este repositório documenta a migração e modernização de um sistema ERP, utilizando **Java 21**, **Spring Boot 3** e **Angular**. O projeto foca em boas práticas de desenvolvimento, arquitetura robusta e TDD.
+Este repositório representa a evolução arquitetural do **Capital ERP**, uma plataforma SaaS em produção voltada para gestão empresarial, financeira e fiscal.
 
-## 🚀 Stack Tecnológico (Backend)
-
-* **Linguagem:** Java 21
-* **Framework:** Spring Boot 3.x
-* **Persistência:** Spring Data JPA (Hibernate)
-* **Bancos de Dados:**
-    * **PostgreSQL:** Banco principal para dados transacionais (desenvolvimento/produção).
-    * **H2 (In-Memory):** Utilizado para testes de integração e CI.
-    * **SQLite:** Utilizado para armazenar dados comuns e estáticos do sistema (ex: NCM, impostos, tabelas de pagamento).
-* **Testes:** JUnit 5, Mockito, MockMvc (`@WebMvcTest`)
-* **Validação:** Spring Boot Validation (`jakarta.validation`)
-* **API:** RESTful (documentada com Postman/Swagger)
+O objetivo deste projeto é modernizar um sistema ERP legado para uma arquitetura **escalável, segura, multi-tenant e orientada a domínio**, utilizando Java 21 e Spring Boot 3.
 
 ---
 
-## 🏛️ Arquitetura
+## 🎯 Contexto do Projeto
 
-O projeto adota uma arquitetura de serviços bem definida (Controllers, Services, Repositories, DTOs).
+O Capital ERP atende operações reais com alta complexidade de negócio, incluindo:
 
-Uma decisão chave de arquitetura foi a **separação dos bancos de dados**:
-1.  **Banco Transacional (PostgreSQL):** Armazena todos os dados dinâmicos da operação (clientes, contas a pagar/receber, etc.).
-2.  **Banco Comum (SQLite):** Armazena dados estáticos e que são raramente modificados. Isso permite uma inicialização mais rápida da aplicação, facilidade na distribuição de atualizações de tabelas fiscais e otimização de consultas.
+* Gestão financeira (contas a pagar/receber)
+* Controle de clientes e fornecedores
+* Integrações fiscais (NF-e, NFS-e, CTe, etc.)
+* Operações multi-tenant (múltiplas empresas no mesmo sistema)
+
+Este repositório foca na **reconstrução do core backend**, priorizando qualidade de código, arquitetura e escalabilidade.
+
+---
+
+## 🧠 Decisões Arquiteturais
+
+### ✔️ Multi-Tenancy (Isolamento por Cliente)
+
+* Estratégia baseada em **schema por tenant no PostgreSQL**
+* Isolamento de dados por empresa
+* Redução de risco de vazamento de dados (cross-tenant)
+* Facilidade de manutenção e escalabilidade
+
+---
+
+### ✔️ Separação de Bancos de Dados
+
+* **PostgreSQL (Transacional):**
+
+  * Dados dinâmicos da operação (clientes, financeiro, pedidos)
+* **SQLite (Dados Comuns):**
+
+  * Tabelas estáticas (NCM, impostos, configurações)
+
+👉 Resultado:
+
+* Melhor performance
+* Inicialização mais rápida
+* Atualização simplificada de dados fiscais
+
+---
+
+### ✔️ Arquitetura em Camadas (Clean Architecture Inspired)
+
+```
+Controller → Service → Repository → Domain
+```
+
+* Controllers: camada de entrada (API REST)
+* Services: regras de negócio
+* Repositories: persistência
+* DTOs: isolamento de contratos da API
+
+---
+
+### ✔️ Domain-Driven Design (DDD)
+
+* Organização do código baseada no domínio
+* Separação clara de responsabilidades
+* Base preparada para evolução em microsserviços
+
+---
+
+## 🚀 Stack Tecnológico
+
+### Backend
+
+* **Java 21**
+* **Spring Boot 3**
+* Spring Data JPA (Hibernate)
+* Spring Validation (Jakarta)
+* JWT / Segurança (em evolução)
+
+### Banco de Dados
+
+* PostgreSQL (principal)
+* SQLite (dados comuns)
+* H2 (testes)
+
+### Testes
+
+* JUnit 5
+* Mockito
+* MockMvc (`@WebMvcTest`)
+
+### API
+
+* RESTful
+* Documentação via Postman / Swagger
 
 ---
 
 ## 🧪 Qualidade e Testes
 
-A qualidade do código é garantida através de testes unitários e de integração. A camada de API (`Controllers`) é 100% testada usando `MockMvc` para simular requisições HTTP e validar respostas, status codes e tratamento de exceções.
+O projeto segue abordagem **TDD (Test-Driven Development)** para garantir confiabilidade e previsibilidade.
 
-**Exemplo de cobertura de testes (Módulo Cliente):**
+A camada de API possui cobertura completa utilizando `MockMvc`, validando:
+
+* Status codes
+* Contratos da API
+* Tratamento de exceções
+* Fluxos de sucesso e erro
+
+### ✔️ Exemplos de cenários testados
+
 * `GET /clientes`
-* `GET /clientes/{id}` (Cenários: OK e Not Found)
-* `POST /clientes` (Cenário: Created)
-* `PUT /clientes/{id}` (Cenários: OK e Not Found)
-* `DELETE /clientes/{id}` (Cenários: No Content, Not Found e Database Integrity)
+* `GET /clientes/{id}` (OK / Not Found)
+* `POST /clientes` (Created)
+* `PUT /clientes/{id}` (OK / Not Found)
+* `DELETE /clientes/{id}` (No Content / Not Found / Integrity)
 
 ---
 
-## 🏁 Como Executar
+## ⚙️ Execução do Projeto
 
-**1. Clonar o repositório:**
+### 1. Clonar repositório
+
 ```bash
-git clone [https://github.com/marlonmarques/capitalerp.git](https://github.com/marlonmarques/capitalerp.git)
-cd capitalerp
+git clone https://github.com/marlonmarques/capitaerp_spring.git
+cd capitaerp_spring
 ```
 
-**2. Executar os testes:**
+### 2. Rodar testes
+
 ```bash
 mvn test
 ```
 
-**3. Executar a aplicação (dev profile com H2/Postgres):**
+### 3. Subir aplicação
+
 ```bash
 mvn spring-boot:run
 ```
 
-## 📋 API
+---
 
-A coleção completa do Postman para testar a API está disponível no repositório:
-[CapitalErp.postman_collection.json](CapitalErp.postman_collection.json)
+## 📦 Roadmap Arquitetural
+
+* [ ] Implementação completa de autenticação (JWT / OAuth2)
+* [ ] Observabilidade (logs estruturados + métricas)
+* [ ] Introdução de eventos assíncronos
+* [ ] Evolução para arquitetura de microsserviços (quando necessário)
+* [ ] Integração com serviços fiscais externos
+
+---
+
+## 🌐 Sobre o Produto
+
+Este projeto faz parte do ecossistema do **Capital ERP**, uma solução SaaS completa já em operação:
+
+🔗 https://capitalerp.com.br
+
+---
+
+## 🧠 Observação
+
+Por se tratar de um sistema em produção, **nem todos os módulos estão disponíveis publicamente** neste repositório.
+O foco aqui é demonstrar decisões arquiteturais, organização de código e boas práticas de engenharia.
+
+---
+
+## 👨‍💻 Autor
+
+**Marlon Cândido Marques**
+Engenheiro de Software Sênior • Tech Lead • Arquitetura SaaS & FinTech
+
+🔗 Portfólio: https://marlonmarques.github.io
+🔗 LinkedIn: https://www.linkedin.com/in/marlon-marques-040942247
+🔗 GitHub: https://github.com/marlonmarques
+
+---
+
+## 🎯 Objetivo
+
+Demonstrar experiência prática na construção de sistemas empresariais escaláveis, com foco em arquitetura, qualidade de código e evolução sustentável em produção.
